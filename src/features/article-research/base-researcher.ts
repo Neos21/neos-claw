@@ -4,12 +4,10 @@ import type { AgentTool } from '../../agent/core.js';
 /**
  * note・Zenn 共通のリサーチ基底クラス
  * 
- * Fetch MCP でプラットフォームの検索ページを直接取得して URL を抽出する
+ * `searchArticles()` をサブクラスでオーバーライドしてプラットフォームごとの取得方法を実装する
  */
 export abstract class BaseResearcher {
   protected abstract readonly platform: Platform;
-  /** 検索ページの URL テンプレート・`{query}` を置換して使う */
-  protected abstract readonly searchUrl: string;
   
   constructor(
     protected readonly fetchTool: AgentTool | null,
@@ -35,33 +33,14 @@ export abstract class BaseResearcher {
     }
   }
   
-  /** Search (Fetch MCP で検索ページを直接取得) */
-  private async searchArticles(topic: string): Promise<Array<string>> {
-    if(this.fetchTool == null) {
-      this.log('Fetch Tool Not Available');
-      return [];
-    }
-    
-    const url = this.searchUrl.replace('{query}', encodeURIComponent(topic));
-    this.log(`Fetching Search Page : ${url}`);
-    
-    try {
-      const html = await this.fetchTool.execute({ url });
-      const urls = this.extractUrls(html);
-      this.log(`Extracted ${urls.length} Article URLs`);
-      return urls;
-    }
-    catch(error) {
-      this.log('Failed To Fetch Search Page :', error);
-      return [];
-    }
-  }
+  /** 記事 URL 一覧を取得する・サブクラスでオーバーライドしてプラットフォームごとの実装を行う */
+  protected abstract searchArticles(topic: string): Promise<Array<string>>;
   
-  /** 検索結果 HTML から記事 URL を抽出する (サブクラスで実装) */
-  protected abstract extractUrls(html: string): Array<string>;
+  /** 記事ページ HTML からメタ情報を抽出する */
+  protected abstract parseArticle(url: string, html: string): SimilarArticle | null;
   
   /** Fetch & Parse (各記事ページを取得して解析) */
-  private async fetchArticles(urls: Array<string>): Promise<Array<SimilarArticle>> {
+  protected async fetchArticles(urls: Array<string>): Promise<Array<SimilarArticle>> {
     if(this.fetchTool == null || urls.length === 0) return [];
     
     const results = await Promise.allSettled(
@@ -74,7 +53,7 @@ export abstract class BaseResearcher {
       .filter((article): article is SimilarArticle => article != null);
   }
   
-  private async fetchAndParse(url: string): Promise<SimilarArticle | null> {
+  protected async fetchAndParse(url: string): Promise<SimilarArticle | null> {
     if(this.fetchTool == null) return null;
     
     try {
@@ -87,9 +66,6 @@ export abstract class BaseResearcher {
       return null;
     }
   }
-  
-  /** 記事ページ HTML からメタ情報を抽出する (サブクラスで実装) */
-  protected abstract parseArticle(url: string, html: string): SimilarArticle | null;
   
   protected log(message: string, ...args: Array<unknown>): void {
     if(this.debug) console.log(`[${this.platform}Researcher] ${message}`, ...args);
