@@ -1,26 +1,44 @@
-import { readdirSync, readFileSync, unlinkSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
+import { readdirSync, readFileSync, writeFileSync, mkdirSync, unlinkSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 
 import type { Runner, RunResult } from './core.js';
 import type { Message } from 'ollama';
 
-/** セッション ID のチャネルプレフィックス */
+// ----------------------------------------------------------------
+// Types
+// ----------------------------------------------------------------
+
+/** セッションIDのチャネルプレフィックス */
 export type ChannelPrefix = 'slack' | 'discord' | 'web';
 
 /**
- * セッション ID 形式
- * - slack:C012AB3CD:U012AB3CD
- * - discord:123456789012345678
- * - web:550e8400-e29b-41d4-a716-446655440000
+ * セッションID形式:
+ *   slack:C012AB3CD:U012AB3CD
+ *   discord:123456789012345678
+ *   web:550e8400-e29b-41d4-a716-446655440000
  */
 export type SessionId = string;
+
+/**
+ * 確認待ちの保留操作。
+ * ToolProxy が「よろしいですか？」を返した後、
+ * 次のターンで「はい」が来たら実行する。
+ */
+export interface PendingOperation {
+  /** 実行する関数（はい時に呼ぶ） */
+  execute: () => Promise<string>;
+  /** 確認メッセージ（ユーザーに見せた内容） */
+  description: string;
+}
 
 export interface Session {
   id: SessionId;
   /** チャネル種別 */
   channel: ChannelPrefix;
-  /** 会話履歴 (System メッセージは含まない・`core.ts` が付与する) */
-  histories: Array<Message>;
+  /** 会話履歴（system メッセージは含まない。core.ts が付与する） */
+  history: Array<Message>;
+  /** 確認待ちの保留操作 */
+  pending: PendingOperation | null;
   /** 最終アクティブ日時 */
   lastActiveAt: Date;
   /** セッション作成日時 */
@@ -28,15 +46,28 @@ export interface Session {
 }
 
 export interface SessionManagerOptions {
-  /** 会話履歴をファイルに永続化するディレクトリ・未指定ならメモリのみ (プロセス再起動で消える) */
+  /**
+   * 会話履歴をファイルに永続化するディレクトリ。
+   * 未指定ならメモリのみ（プロセス再起動で消える）。
+   */
   persistDir?: string;
-  /** 1 セッションが保持するメッセージの最大数 (古いものから削除)・デフォルト 50 */
+  /**
+   * 1セッションが保持するメッセージの最大数（古いものから削除）。
+   * デフォルト: 50
+   */
   maxHistoryLength?: number;
-  /** アイドル状態のセッションを自動削除するまでの時間 (ms)・デフォルト: 2時間 */
+  /**
+   * アイドル状態のセッションを自動削除するまでの時間（ms）。
+   * デフォルト: 2時間
+   */
   sessionTtlMs?: number;
-  /** デバッグログを出力するか否か */
+  /** デバッグログを出力するか */
   debug?: boolean;
 }
+
+// ----------------------------------------------------------------
+// SessionManager
+// ----------------------------------------------------------------
 
 export class SessionManager {
   private sessions = new Map<SessionId, Session>();
@@ -52,123 +83,201 @@ export class SessionManager {
     this.sessionTtlMs = options.sessionTtlMs ?? 2 * 60 * 60 * 1000; // 2時間
     this.debug = options.debug ?? false;
     
-    if(this.persistDir != null) {
+    if(this.persistDir) {
       mkdirSync(this.persistDir, { recursive: true });
       this.loadAllFromDisk();
     }
     
-    // 期限切れセッションを定期的に GC する (10分ごと)
+    // 期限切れセッションを定期的にGCする（10分ごと）
     this.gcTimer = setInterval(() => this.gc(), 10 * 60 * 1000);
     // Node.js プロセス終了を妨げないようにする
     this.gcTimer.unref();
   }
   
+  // ----------------------------------------------------------------
+  // Public API
+  // ----------------------------------------------------------------
+  
   /**
-   * セッション ID を生成するファクトリ関数
+   * セッションIDを生成するファクトリ関数
    * 
    * @example
-   * SessionManager.makeId('slack', 'C012AB3CD', 'U012AB3CD')
-   * // → 'slack:C012AB3CD:U012AB3CD'
+   * SessionManager.makeId("slack", "C012AB3CD", "U012AB3CD")
+   * // → "slack:C012AB3CD:U012AB3CD"
    *
-   * SessionManager.makeId('discord', '123456789')
-   * // → 'discord:123456789'
+   * SessionManager.makeId("discord", "123456789")
+   * // → "discord:123456789"
    *
-   * SessionManager.makeId('web', crypto.randomUUID())
-   * // → 'web:550e8400-...'
+   * SessionManager.makeId("web", crypto.randomUUID())
+   * // → "web:550e8400-..."
    */
-  public static makeId(channel: ChannelPrefix, ...parts: Array<string>): SessionId {
+  static makeId(channel: ChannelPrefix, ...parts: Array<string>): SessionId {
     return [channel, ...parts].join(':');
   }
   
   /**
-   * AgentCore にメッセージを送り応答を返す
-   * セッションの取得・作成・履歴の追加・永続化を全て処理する
+   * AgentCore にメッセージを送り、応答を返す。
+   * セッションの取得・作成・履歴の追加・永続化をすべて処理する。
    * 
-   * @param sessionId セッションID (`makeId()` で生成)
-   * @param userMessage ユーザのメッセージ
-   * @param core AgentCore インスタンス
+   * @param sessionId - セッションID（makeId() で生成）
+   * @param userMessage - ユーザーのメッセージ
+   * @param core - AgentCore インスタンス
    */
-  public async chat(
+  async chat(
     sessionId: SessionId,
     userMessage: string,
     core: Runner
   ): Promise<RunResult> {
     const session = this.getOrCreate(sessionId);
     
-    this.log(`[${sessionId}] User : ${userMessage.slice(0, 80)}...`);
+    this.log(`[${sessionId}] User: ${userMessage.slice(0, 80)}...`);
     
-    // `core.run()` に渡すのは既存の履歴のみ (System は `core` が付与)
-    const result = await core.run(session.histories, userMessage);
+    // ── 保留操作の処理 ──────────────────────────────────────────
+    if(session.pending != null) {
+      const pending = session.pending;
+      session.pending = null;
+      
+      const isYes = /^(はい|yes|y|ok|おk|うん|いいよ|どうぞ|実行|お願い)$/i.test(userMessage.trim());
+      const isNo  = /^(いいえ|no|n|やめ|キャンセル|中止|止め|やっぱり)/.test(userMessage.trim());
+      
+      if(isYes) {
+        const toolResult = await pending.execute();
+        const result: RunResult = {
+          text: toolResult,
+          toolCalls: [],
+          iterations: 1
+        };
+        session.history.push(
+          { role: 'user', content: userMessage },
+          { role: 'assistant', content: result.text }
+        );
+        session.lastActiveAt = new Date();
+        if(this.persistDir != null) this.saveToDisk(session);
+        return result;
+      }
+      
+      if(isNo) {
+        const result: RunResult = {
+          text: '操作をキャンセルしました。',
+          toolCalls: [],
+          iterations: 0
+        };
+        session.history.push(
+          { role: 'user', content: userMessage },
+          { role: 'assistant', content: result.text }
+        );
+        session.lastActiveAt = new Date();
+        if(this.persistDir != null) this.saveToDisk(session);
+        return result;
+      }
+      
+      // はい/いいえ以外の返答 → 保留を破棄して通常処理に流す
+      this.log(`[${sessionId}] Pending operation discarded (unclear response)`);
+    }
     
-    // 履歴に今回のやり取りを追加する
-    session.histories.push(
+    // core.run() に渡すのは既存の履歴のみ（system は core が付与）
+    const result = await core.run(session.history, userMessage, sessionId);
+    
+    // 履歴に今回のやり取りを追加
+    session.history.push(
       { role: 'user', content: userMessage },
       { role: 'assistant', content: result.text }
     );
     
-    // Tool Call の中間メッセージも履歴に保持する場合はここで追加可能
-    // (現状はユーザ・アシスタントのターンのみ保持してシンプルに保つ)
+    // tool call の中間メッセージも履歴に保持する場合はここで追加可能
+    // （現状はユーザー/アシスタントのターンのみ保持してシンプルに保つ）
     
-    // 最大長を超えたら古いメッセージから削除 (先頭から2件ずつ削除)
-    while(session.histories.length > this.maxHistoryLength) session.histories.splice(0, 2);
+    // 最大長を超えたら古いメッセージから削除（先頭から2件ずつ削除）
+    while(session.history.length > this.maxHistoryLength) {
+      session.history.splice(0, 2);
+    }
     
     session.lastActiveAt = new Date();
     
-    if(this.persistDir != null) this.saveToDisk(session);
+    if(this.persistDir) {
+      this.saveToDisk(session);
+    }
     
-    this.log(`[${sessionId}] Assistant : ${result.text.slice(0, 80)}...`);
+    this.log(`[${sessionId}] Assistant: ${result.text.slice(0, 80)}...`);
+    
     return result;
   }
   
-  /** セッションの会話履歴をリセットする */
-  public clearHistory(sessionId: SessionId): void {
+  /**
+   * 確認待ち操作をセッションに登録する（ToolProxy から呼ぶ）
+   */
+  setPending(sessionId: SessionId, pending: PendingOperation): void {
+    const session = this.getOrCreate(sessionId);
+    session.pending = pending;
+    this.log(`[${sessionId}] Pending operation set: ${pending.description}`);
+  }
+  
+  /**
+   * セッションの会話履歴をリセットする
+   */
+  clearHistory(sessionId: SessionId): void {
     const session = this.sessions.get(sessionId);
-    if(session != null) {
-      session.histories = [];
+    if(session) {
+      session.history = [];
       session.lastActiveAt = new Date();
-      if(this.persistDir != null) this.saveToDisk(session);
-      this.log(`[${sessionId}] History Cleared`);
+      if(this.persistDir) this.saveToDisk(session);
+      this.log(`[${sessionId}] History cleared.`);
     }
   }
   
-  /** セッションを削除する */
-  public deleteSession(sessionId: SessionId): void {
+  /**
+   * セッションを削除する
+   */
+  deleteSession(sessionId: SessionId): void {
     this.sessions.delete(sessionId);
-    if(this.persistDir != null) this.deleteFromDisk(sessionId);
-    this.log(`[${sessionId}] Session Deleted`);
+    if(this.persistDir) {
+      this.deleteFromDisk(sessionId);
+    }
+    this.log(`[${sessionId}] Session deleted.`);
   }
   
-  /** 現在アクティブなセッション数を返す */
-  public get size(): number {
+  /**
+   * 現在アクティブなセッション数を返す
+   */
+  get size(): number {
     return this.sessions.size;
   }
   
-  /** GC タイマーを停止する (テスト・シャットダウン時用) */
-  public destroy(): void {
-    if(this.gcTimer == null) return;
-    
-    clearInterval(this.gcTimer);
-    this.gcTimer = null;
+  /**
+   * GCタイマーを停止する（テスト・シャットダウン時用）
+   */
+  destroy(): void {
+    if(this.gcTimer) {
+      clearInterval(this.gcTimer);
+      this.gcTimer = null;
+    }
   }
   
+  // ----------------------------------------------------------------
+  // Private helpers
+  // ----------------------------------------------------------------
+  
   private getOrCreate(sessionId: SessionId): Session {
-    if(this.sessions.has(sessionId)) return this.sessions.get(sessionId)!;
+    if(this.sessions.has(sessionId)) {
+      return this.sessions.get(sessionId)!;
+    }
     
     const channel = sessionId.split(':')[0] as ChannelPrefix;
     const session: Session = {
       id: sessionId,
       channel,
-      histories: [],
+      history: [],
+      pending: null,
       lastActiveAt: new Date(),
       createdAt: new Date()
     };
     
     this.sessions.set(sessionId, session);
-    this.log(`[${sessionId}] Session Created`);
+    this.log(`[${sessionId}] Session created.`);
     return session;
   }
   
-  /** 期限切れセッションをメモリから削除する */
+  /** 期限切れセッションをメモリから削除 */
   private gc(): void {
     const now = Date.now();
     let removed = 0;
@@ -178,12 +287,17 @@ export class SessionManager {
         removed++;
       }
     }
-    if(removed > 0) this.log(`GC : Removed ${removed} Expired Session(s). Active : ${this.sessions.size}`);
+    if(removed > 0) {
+      this.log(`GC: removed ${removed} expired session(s). Active: ${this.sessions.size}`);
+    }
   }
   
-  /** 永続化 (オプション) */
+  // ----------------------------------------------------------------
+  // 永続化（オプション）
+  // ----------------------------------------------------------------
+  
   private sessionPath(sessionId: SessionId): string {
-    // ファイル名に使えない文字（:）をアンダースコアに変換する
+    // ファイル名に使えない文字（:）をアンダースコアに変換
     const safe = sessionId.replace(/:/g, '_');
     return join(this.persistDir!, `${safe}.json`);
   }
@@ -201,15 +315,15 @@ export class SessionManager {
       );
       writeFileSync(this.sessionPath(session.id), data, 'utf-8');
     }
-    catch(error) {
-      this.log(`Failed To Save Session ${session.id} :`, error);
+    catch(err) {
+      this.log(`Failed to save session ${session.id}:`, err);
     }
   }
   
   private loadAllFromDisk(): void {
     let files: Array<string>;
     try {
-      files = readdirSync(this.persistDir!).filter((file: string) => file.endsWith('.json'));
+      files = readdirSync(this.persistDir!).filter((f: string) => f.endsWith('.json'));
     }
     catch {
       return;
@@ -229,11 +343,11 @@ export class SessionManager {
         };
         this.sessions.set(session.id, session);
       }
-      catch(error) {
-        this.log(`Failed To Load Session File ${file} :`, error);
+      catch(err) {
+        this.log(`Failed to load session file ${file}:`, err);
       }
     }
-    this.log(`Loaded ${this.sessions.size} Session(s) From Disk`);
+    this.log(`Loaded ${this.sessions.size} session(s) from disk.`);
   }
   
   private deleteFromDisk(sessionId: SessionId): void {
@@ -241,12 +355,14 @@ export class SessionManager {
       const path = this.sessionPath(sessionId);
       if(existsSync(path)) unlinkSync(path);
     }
-    catch(error) {
-      this.log(`Failed To Delete Session File For ${sessionId} :`, error);
+    catch(err) {
+      this.log(`Failed to delete session file for ${sessionId}:`, err);
     }
   }
   
   private log(message: string, ...args: Array<unknown>): void {
-    if(this.debug) console.log(`[SessionManager] ${message}`, ...args);
+    if(this.debug) {
+      console.log(`[SessionManager] ${message}`, ...args);
+    }
   }
 }

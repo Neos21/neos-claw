@@ -65,7 +65,21 @@ export default defineConfig([
       // `any` を許す
       '@typescript-eslint/no-explicit-any': 'off',
       // 引数が1つの時はカッコをなくす
-      'arrow-parens': ['error', 'as-needed']
+      'arrow-parens': ['error', 'as-needed'],
+      '@typescript-eslint/naming-convention': ['error',
+        {
+          // 変数全般のルール設定
+          'selector': 'variable',
+          'format': ['camelCase']
+          // "UPPER_CASE" を含めないことで、大文字スネークケースを禁止する
+        },
+        {
+          // 定数 (const) も含めて一括で指定する
+          'selector': 'variable',
+          'modifiers': ['const'],
+          'format': ['camelCase'] 
+        }
+      ]
     }
   },
   neosEslintPlugin.configs.recommended,

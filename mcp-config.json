@@ -1,7 +1,37 @@
 {
   "mcpServers": {
-    "filesystem": { "command": "npx", "args": ["-y", "@modelcontextprotocol/server-filesystem", "./workspace"] },
-    "fetch"     : { "command": "npx", "args": ["-y", "mcp-fetch-server"] },
-    "memory"    : { "command": "npx", "args": ["-y", "@modelcontextprotocol/server-memory"] }
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "./workspace"],
+      "exclude": [
+        "read_file",
+        "read_media_file",
+        "list_directory_with_sizes",
+        "directory_tree"
+      ]
+    },
+    "fetch": {
+      "command": "npx",
+      "args": ["-y", "mcp-fetch-server"],
+      "exclude": [
+        "fetch_html",
+        "fetch_json",
+        "fetch_youtube_transcript"
+      ]
+    },
+    "memory": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-memory"],
+      "exclude": [
+        "create_entities",
+        "create_relations",
+        "add_observations",
+        "delete_entities",
+        "delete_observations",
+        "delete_relations",
+        "read_graph",
+        "open_nodes"
+      ]
+    }
   }
 }

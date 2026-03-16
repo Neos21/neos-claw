@@ -269,9 +269,12 @@ header {
       <div class="logo">Neo's Claw <span>/ Agent</span></div>
       <div id="session-id">Session : —</div>
     </div>
-    <div class="status">
-      <div class="status-dot" id="status-dot"></div>
-      <span id="status-text">Connecting...</span>
+    <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 5px;">
+      <div class="status">
+        <div class="status-dot" id="status-dot"></div>
+        <span id="status-text">connecting...</span>
+      </div>
+      <div id="model-name" style="font-size: 10px; color: var(--muted);">model: —</div>
     </div>
   </header>
   
@@ -443,6 +446,16 @@ header {
   connect();
   appendMessage('system', 'エージェントに接続中...');
   inputEl.focus();
+  
+  // モデル名を取得して表示
+  fetch('/api/health')
+    .then(r => r.json())
+    .then(data => {
+      if (data.model != null) {
+        document.getElementById('model-name').textContent = 'model: ' + data.model;
+      }
+    })
+    .catch(() => {});
 })();
 
     </script>
