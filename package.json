@@ -1,10 +1,13 @@
 {
   "name": "neos-claw",
-  "description": "Neo's Claw",
   "private": true,
+  "type": "module",
+  "description": "Neo's Claw",
   "scripts": {
     "start": "tsx ./index.ts",
-    "eslint": "eslint"
+    "lint": "eslint . --fix",
+    "eslint": "eslint",
+    "tsc": "tsc"
   },
   "author": "Neo <neos21@gmail.com> (https://neos21.net/)",
   "license": "MIT",
@@ -21,12 +24,17 @@
     "url": "https://github.com/sponsors/Neos21"
   },
   "dependencies": {
-    "ollama": "0.6.3"
+    "@modelcontextprotocol/sdk": "1.27.1",
+    "express": "5.2.1",
+    "ollama": "0.6.3",
+    "ws": "8.19.0"
   },
   "devDependencies": {
     "@eslint/js": "9.39.4",
     "@neos21/neos-eslint-plugin": "0.0.2",
+    "@types/express": "5.0.6",
     "@types/node": "25.5.0",
+    "@types/ws": "8.18.1",
     "eslint": "9.39.4",
     "eslint-plugin-import": "2.32.0",
     "globals": "17.4.0",

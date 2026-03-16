@@ -47,28 +47,23 @@ export default defineConfig([
         allowIIFEs: true  // 即時関数は型定義の省略を許可する
       }],
       // 等価比較をチェックする
-      '@typescript-eslint/strict-boolean-expressions': [
-        'error',
-        {
-          allowString: false,
-          allowNumber: false,
-          allowNullableObject: false, // `null`・`undefined` 含むオブジェクトを明示的チェックにする
-          allowNullableBoolean: false,
-          allowNullableString: false,
-          allowNullableNumber: false,
-          allowAny: false
-        }
-      ],
+      '@typescript-eslint/strict-boolean-expressions': ['error', {
+        allowString: false,
+        allowNumber: false,
+        allowNullableObject: false, // `null`・`undefined` 含むオブジェクトを明示的チェックにする
+        allowNullableBoolean: false,
+        allowNullableString: false,
+        allowNullableNumber: false,
+        allowAny: false
+      }],
       // `== null` (`undefined` 含む) のチェックを許容する
       'eqeqeq': ['error', 'always', { null: 'ignore' }],
       // ケツカンマ禁止
       'comma-dangle': ['error', 'never'],
-      '@typescript-eslint/array-type': [
-        'error',
-        {
-          default: 'generic' // `Array<T>` 形式を強制する
-        }
-      ]
+      // `Array<T>` 形式を強制する
+      '@typescript-eslint/array-type': ['error', { default: 'generic' }],
+      // `any` を許す
+      '@typescript-eslint/no-explicit-any': 'off'
     }
   },
   neosEslintPlugin.configs.recommended,
