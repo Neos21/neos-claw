@@ -2,7 +2,7 @@ import { Client, GatewayIntentBits, Partials, Events, ChannelType, ActivityType,
 
 import { SessionManager } from '../agent/session.js';
 
-import type { AgentCore } from '../agent/core.js';
+import type { Runner } from '../agent/core.js';
 
 export interface DiscordAdapterOptions {
   /** Discord Bot Token */
@@ -26,14 +26,14 @@ export interface DiscordAdapterOptions {
 export class DiscordAdapter {
   private client: Client;
   private sessions: SessionManager;
-  private core: AgentCore;
+  private core: Runner;
   private showTyping: boolean;
   private channelMode: 'mention' | 'all';
   private allowedChannelIds: Set<string>;
   private token: string;
   private debug: boolean;
   
-  constructor(core: AgentCore, options: DiscordAdapterOptions = {}) {
+  constructor(core: Runner, options: DiscordAdapterOptions = {}) {
     this.core = core;
     this.showTyping = options.showTyping ?? true;
     this.channelMode = options.channelMode ?? 'mention';

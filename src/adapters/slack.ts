@@ -2,7 +2,7 @@ import { App, LogLevel } from '@slack/bolt';
 
 import { SessionManager } from '../agent/session.js';
 
-import type { AgentCore } from '../agent/core.js';
+import type { Runner } from '../agent/core.js';
 
 export interface SlackAdapterOptions {
   /** Slack Bot Token (`xoxb-...`) */
@@ -19,11 +19,11 @@ export interface SlackAdapterOptions {
 export class SlackAdapter {
   private app: App;
   private sessions: SessionManager;
-  private core: AgentCore;
+  private core: Runner;
   private showTyping: boolean;
   private debug: boolean;
   
-  constructor(core: AgentCore, options: SlackAdapterOptions = {}) {
+  constructor(core: Runner, options: SlackAdapterOptions = {}) {
     this.core = core;
     this.showTyping = options.showTyping ?? true;
     this.debug = options.debug ?? false;

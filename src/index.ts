@@ -4,6 +4,7 @@ import { resolve } from 'node:path';
 import { DiscordAdapter } from './adapters/discord.js';
 import { SlackAdapter } from './adapters/slack.js';
 import { AgentCore } from './agent/core.js';
+import { ToolProxy } from './agent/tool-proxy.js';
 import { McpClient } from './mcp/client.js';
 import { FrontendServer } from './server/app.js';
 
@@ -19,6 +20,7 @@ async function main(): Promise<void> {
   
   // 1. AgentCore を初期化する
   const core = new AgentCore({ debug: isDebugMode });
+  const proxy = new ToolProxy(core, { debug: isDebugMode });
   console.log(`  ✅ AgentCore Ready (Model : ${process.env.OLLAMA_MODEL ?? 'qwen2.5:14b-instruct-q4_k_m'})`);
   
   // 2. MCP サーバを起動してツールを登録する
@@ -30,14 +32,14 @@ async function main(): Promise<void> {
   const adapters: Array<{ stop: () => Promise<void> }> = [];
   
   if(isWebEnabled) {
-    const server = new FrontendServer(core, { debug: isDebugMode });
+    const server = new FrontendServer(proxy, { debug: isDebugMode });
     await server.start();
     console.log('  ✅ Web UI Ready');
     adapters.push(server);
   }
   
   if(isSlackEnabled) {
-    const slack = new SlackAdapter(core, {
+    const slack = new SlackAdapter(proxy, {
       persistDir: './sessions/slack',
       debug: isDebugMode
     });
@@ -47,7 +49,7 @@ async function main(): Promise<void> {
   }
   
   if(isDiscordEnabled) {
-    const discord = new DiscordAdapter(core, {
+    const discord = new DiscordAdapter(proxy, {
       persistDir: './sessions/discord',
       debug: isDebugMode
     });

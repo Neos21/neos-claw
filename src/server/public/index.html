@@ -2,10 +2,12 @@
 <html lang="ja">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Neo's Claw</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Syne:wght@400;700;800&display=swap" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=M+PLUS+1+Code:wght@500&amp;display=swap" fetchPriority="high">
+    <link rel="stylesheet"         href="https://fonts.googleapis.com/css2?family=M+PLUS+1+Code:wght@500&amp;display=swap" fetchPriority="high">
     <style>
 
 :root {
@@ -20,11 +22,11 @@
   --user-bg : #13131f;
   --agent-bg: #0e1a14;
   --radius  :  6px;
-  --mono    : 'JetBrains Mono', monospace;
-  --sans    : 'Syne', sans-serif;
+  --mono    : "M PLUS 1 Code", monospace;
+  --sans    : "M PLUS 1 Code", monospace;
 }
 
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+*, ::before, ::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 html, body {
   height: 100%;
@@ -33,6 +35,7 @@ html, body {
   font-family: var(--mono);
   font-size: 14px;
   line-height: 1.6;
+  cursor: default;
 }
 
 /* Layout */

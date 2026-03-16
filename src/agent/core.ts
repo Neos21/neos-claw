@@ -37,6 +37,12 @@ export interface RunResult {
   iterations: number;
 }
 
+// AgentCore と ToolProxy の共通インターフェース
+export interface Runner {
+  run(history: Array<Message>, userMessage: string): Promise<RunResult>;
+  getTools(): Array<AgentTool>;
+}
+
 export class AgentCore {
   private ollama: Ollama;
   private model: string;
@@ -156,12 +162,12 @@ export class AgentCore {
   /** Array<AgentTool> を Ollama の Array<Tool> 形式に変換 */
   private buildOllamaTools(): Array<Tool> {
     if(this.tools.length === 0) return [];
-    return this.tools.map(t => ({
+    return this.tools.map(tool => ({
       type: 'function',
       function: {
-        name: t.name,
-        description: t.description,
-        parameters: t.parameters
+        name: tool.name,
+        description: tool.description,
+        parameters: tool.parameters
       }
     }));
   }
@@ -196,12 +202,12 @@ export class AgentCore {
    * モデルが「今何のツールが使えるか」を確実に把握できるようにするため
    */
   private buildSystemPrompt(): string {
-    const base = this.systemPrompt || 'You are a helpful AI assistant. Always respond in the same language as the user.';
+    const base = this.systemPrompt || 'You are a helpful AI assistant. Always respond in the same language as the user.';  // eslint-disable-line @typescript-eslint/strict-boolean-expressions
     if(this.tools.length === 0) return base;
     
     const toolList = this.tools
-      .map((t) => `- ${t.name}: ${t.description}`)
-      .join("\n");
+      .map(tool => `- ${tool.name}: ${tool.description}`)
+      .join('\n');
     return `${base}
 
 ## Rules (MUST follow)

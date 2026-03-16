@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync, unlinkSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 
-import type { AgentCore, RunResult } from './core.js';
+import type { Runner, RunResult } from './core.js';
 import type { Message } from 'ollama';
 
 /** セッション ID のチャネルプレフィックス */
@@ -91,7 +91,7 @@ export class SessionManager {
   public async chat(
     sessionId: SessionId,
     userMessage: string,
-    core: AgentCore
+    core: Runner
   ): Promise<RunResult> {
     const session = this.getOrCreate(sessionId);
     

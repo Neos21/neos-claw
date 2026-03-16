@@ -6,7 +6,7 @@ import { WebSocketServer, WebSocket } from 'ws';
 
 import { SessionManager } from '../agent/session.js';
 
-import type { AgentCore } from '../agent/core.js';
+import type { Runner } from '../agent/core.js';
 import type { Request, Response } from 'express';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -40,20 +40,16 @@ type WsOutgoing =
   | { type: 'done'; sessionId: string; toolCalls: ChatResponse['toolCalls']; iterations: number }
   | { type: 'error'; message: string };
 
-// ----------------------------------------------------------------
-// FrontendServer
-// ----------------------------------------------------------------
-
 export class FrontendServer {
   private app = express();
   private server: http.Server;
   private wss: WebSocketServer;
   private sessions: SessionManager;
-  private core: AgentCore;
+  private core: Runner;
   private port: number;
   private debug: boolean;
   
-  constructor(core: AgentCore, options: FrontendServerOptions = {}) {
+  constructor(core: Runner, options: FrontendServerOptions = {}) {
     this.core = core;
     this.port = options.port ?? Number(process.env.PORT ?? 58080);  // デフォルトポート
     this.debug = options.debug ?? false;
@@ -106,7 +102,7 @@ export class FrontendServer {
     this.app.get('/api/health', (_req: Request, res: Response) => {
       res.json({
         status: 'ok',
-        tools: this.core.getTools().map(t => t.name),
+        tools: this.core.getTools().map(tool => tool.name),
         sessions: this.sessions.size
       });
     });

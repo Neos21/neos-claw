@@ -21,7 +21,7 @@
 
 1. 左メニュー **Settings → Socket Mode** を開く
 2. **Enable Socket Mode** をオンにする
-3. Token Name（例: `lightagent-socket`）を入力して **Generate**
+3. Token Name（例: `neos-claw-socket`）を入力して **Generate**
 4. 表示された `xapp-...` トークンをコピー → `.env` の `SLACK_APP_TOKEN` に貼る
 
 ### 3. Bot Token Scopes を設定する
