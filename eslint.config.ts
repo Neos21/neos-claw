@@ -63,7 +63,9 @@ export default defineConfig([
       // `Array<T>` 形式を強制する
       '@typescript-eslint/array-type': ['error', { default: 'generic' }],
       // `any` を許す
-      '@typescript-eslint/no-explicit-any': 'off'
+      '@typescript-eslint/no-explicit-any': 'off',
+      // 引数が1つの時はカッコをなくす
+      'arrow-parens': ['error', 'as-needed']
     }
   },
   neosEslintPlugin.configs.recommended,

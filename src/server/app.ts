@@ -101,7 +101,7 @@ export class FrontendServer {
     this.app.get('/api/health', (_req: Request, res: Response) => {
       res.json({
         status: 'ok',
-        tools: this.core.getTools().map((t) => t.name),
+        tools: this.core.getTools().map(t => t.name),
         sessions: this.sessions.size
       });
     });

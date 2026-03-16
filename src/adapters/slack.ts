@@ -142,7 +142,7 @@ export class SlackAdapter {
       // デバッグ時 : Tool Call サマリーをエフェメラルで表示する
       if(this.debug && result.toolCalls.length > 0) {
         const summary = result.toolCalls
-          .map((tc) => `• \`${tc.name}\` → ${tc.result.slice(0, 80)}`)
+          .map(tc => `• \`${tc.name}\` → ${tc.result.slice(0, 80)}`)
           .join('\n');
         this.log(`Tool Calls :\n${summary}`);
       }

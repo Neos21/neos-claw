@@ -77,7 +77,7 @@ export class AgentCore {
     const toolCallLog: RunResult['toolCalls'] = [];
     let iterations = 0;
     
-    this.log('▶ Starting ReAct Loop', { model: this.model, tools: this.tools.map((t) => t.name) });
+    this.log('▶ Starting ReAct Loop', { model: this.model, tools: this.tools.map(t => t.name) });
     
     // ReAct ループ : Reasoning → Action → Observation → 繰り返し
     while(iterations < this.maxIterations) {
@@ -106,7 +106,7 @@ export class AgentCore {
       }
       
       // Tool Call がある場合は全て実行して結果を履歴に追加
-      this.log('🔧 Tool Calls :', assistantMessage.tool_calls.map((tc) => tc.function.name));
+      this.log('🔧 Tool Calls :', assistantMessage.tool_calls.map(tc => tc.function.name));
       
       for(const toolCall of assistantMessage.tool_calls as Array<ToolCall>) {
         const result = await this.executeTool(toolCall);
@@ -158,7 +158,7 @@ export class AgentCore {
   /** Array<AgentTool> を Ollama の Array<Tool> 形式に変換 */
   private buildOllamaTools(): Array<Tool> {
     if(this.tools.length === 0) return [];
-    return this.tools.map((t) => ({
+    return this.tools.map(t => ({
       type: 'function',
       function: {
         name: t.name,
