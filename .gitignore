@@ -4,4 +4,5 @@ Thumbs.db
 .env
 
 node_modules/
+sessions/
 workspace/

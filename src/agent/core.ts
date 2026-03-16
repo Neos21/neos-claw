@@ -96,7 +96,7 @@ export class AgentCore {
       ...history,
       { role: 'user', content: userMessage }
     ];
-    this.log("=== SYSTEM PROMPT ===\n" + this.buildSystemPrompt());
+    this.log('=== SYSTEM PROMPT ===\n' + this.buildSystemPrompt());
     
     const toolCallLog: RunResult['toolCalls'] = [];
     let iterations = 0;

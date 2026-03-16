@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync, writeFileSync, mkdirSync, unlinkSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, readdirSync, unlinkSync, mkdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 
 import type { Runner, RunResult } from './core.js';
@@ -297,16 +297,21 @@ export class SessionManager {
   // ----------------------------------------------------------------
   
   private sessionPath(sessionId: SessionId): string {
-    // ファイル名に使えない文字（:）をアンダースコアに変換
+    // プレフィックス（web / slack / discord）でサブディレクトリに振り分ける
+    const channel = sessionId.split(':')[0] ?? 'web';
     const safe = sessionId.replace(/:/g, '_');
-    return join(this.persistDir!, `${safe}.json`);
+    const dir = join(this.persistDir!, channel);
+    mkdirSync(dir, { recursive: true });
+    return join(dir, `${safe}.json`);
   }
   
   private saveToDisk(session: Session): void {
     try {
+      // pending は関数を含むためシリアライズ不可 → 保存しない（再起動時に破棄）
+      const { pending: _pending, ...rest } = session;
       const data = JSON.stringify(
         {
-          ...session,
+          ...rest,
           lastActiveAt: session.lastActiveAt.toISOString(),
           createdAt: session.createdAt.toISOString()
         },
@@ -321,23 +326,31 @@ export class SessionManager {
   }
   
   private loadAllFromDisk(): void {
-    let files: Array<string>;
-    try {
-      files = readdirSync(this.persistDir!).filter((f: string) => f.endsWith('.json'));
-    }
-    catch {
-      return;
+    // web / slack / discord サブディレクトリを再帰的に読み込む
+    const channels: Array<ChannelPrefix> = ['web', 'slack', 'discord'];
+    const filePairs: Array<{ dir: string; file: string }> = [];
+    
+    for(const channel of channels) {
+      const dir = join(this.persistDir!, channel);
+      try {
+        const files = readdirSync(dir).filter(f => f.endsWith('.json'));
+        for(const file of files) filePairs.push({ dir, file });
+      }
+      catch {
+        // サブディレクトリが存在しない場合はスキップ
+      }
     }
     
-    for(const file of files) {
+    for(const { dir, file } of filePairs) {
       try {
-        const raw = readFileSync(join(this.persistDir!, file), 'utf-8');
+        const raw = readFileSync(join(dir, file), 'utf-8');
         const data = JSON.parse(raw) as Session & {
           lastActiveAt: string;
           createdAt: string;
         };
         const session: Session = {
           ...data,
+          pending: null,  // 関数は保存できないので再起動時は常に null
           lastActiveAt: new Date(data.lastActiveAt),
           createdAt: new Date(data.createdAt)
         };
