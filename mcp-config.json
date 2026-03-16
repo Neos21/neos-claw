@@ -1,16 +1,7 @@
 {
   "mcpServers": {
-    "filesystem": {
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-filesystem", "./workspace"]
-    },
-    "fetch": {
-      "command": "npx",
-      "args": ["-y", "mcp-fetch-server"]
-    },
-    "memory": {
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-memory"]
-    }
+    "filesystem": { "command": "npx", "args": ["-y", "@modelcontextprotocol/server-filesystem", "./workspace"] },
+    "fetch"     : { "command": "npx", "args": ["-y", "mcp-fetch-server"] },
+    "memory"    : { "command": "npx", "args": ["-y", "@modelcontextprotocol/server-memory"] }
   }
 }

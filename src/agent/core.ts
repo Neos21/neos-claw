@@ -51,9 +51,7 @@ export class AgentCore {
     });
     this.model = options.model ?? process.env.OLLAMA_MODEL ?? 'qwen2.5:14b-instruct-q4_k_m';
     this.tools = options.tools ?? [];
-    this.systemPrompt =
-      options.systemPrompt ??
-      'You are a helpful AI assistant. Use the available tools when needed. Always respond in the same language as the user.';
+    this.systemPrompt = options.systemPrompt ?? '';
     this.maxIterations = options.maxIterations ?? 10;
     this.debug = options.debug ?? false;
   }
@@ -69,7 +67,7 @@ export class AgentCore {
   public async run(histories: Array<Message>, userMessage: string): Promise<RunResult> {
     // System + 過去履歴 + 今回のユーザメッセージ
     const messages: Array<Message> = [
-      { role: 'system', content: this.systemPrompt },
+      { role: 'system', content: this.buildSystemPrompt() },
       ...histories,
       { role: 'user', content: userMessage }
     ];
@@ -135,7 +133,7 @@ export class AgentCore {
   
   /** ツールを動的に追加する (MCPClientからの登録用) */
   public registerTool(agentTool: AgentTool): void {
-    const existing = this.tools.findIndex(tool => tool.name === tool.name);
+    const existing = this.tools.findIndex(tool => tool.name === agentTool.name);
     if(existing !== -1) {
       this.tools[existing] = agentTool;  // 上書き
     }
@@ -191,6 +189,34 @@ export class AgentCore {
       this.log(`❌ ${message}`);
       return message;
     }
+  }
+  
+  /**
+   * 登録済みツール一覧をシステムプロンプトに動的に注入する
+   * モデルが「今何のツールが使えるか」を確実に把握できるようにするため
+   */
+  private buildSystemPrompt(): string {
+    const base = this.systemPrompt || 'You are a helpful AI assistant. Always respond in the same language as the user.';
+    if(this.tools.length === 0) return base;
+    
+    const toolList = this.tools
+      .map((t) => `- ${t.name}: ${t.description}`)
+      .join("\n");
+    return `${base}
+
+## Rules (MUST follow)
+1. When the user asks you to create, read, write, move, or delete a file or directory, you MUST call the appropriate tool immediately. Do NOT ask for confirmation or extra information unless truly required.
+2. To create an empty file, call write_file with empty string content "".
+3. Relative paths like "workspace/test.txt" or "./workspace/test.txt" refer to the allowed workspace directory. Use the absolute path shown in list_allowed_directories if needed.
+4. NEVER say you cannot do something if a matching tool exists. Just call it.
+5. After a tool call succeeds, report the result briefly in the user's language.
+
+## Available Tools
+You have access to the following tools. Use them proactively whenever the user's request requires it.
+DO NOT say you cannot do something if a tool exists that can help.
+${toolList}
+
+Always prefer using a tool over telling the user you cannot help.`;
   }
   
   private log(message: string, ...args: Array<unknown>): void {
