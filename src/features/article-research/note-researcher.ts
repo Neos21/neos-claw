@@ -5,7 +5,8 @@ import type { AgentTool } from '../../agent/core.js';
 
 export class NoteResearcher extends BaseResearcher {
   protected readonly platform = 'note' as const;
-  // note の検索ページ（カテゴリ: テキスト、並び順: 人気）
+  
+  /** note の検索ページ (カテゴリ : テキスト、並び順 : 人気) */
   protected readonly searchUrl = 'https://note.com/search?q={query}&context=note&mode=recommend';
   
   constructor(fetchTool: AgentTool | null, debug = false) {
@@ -13,7 +14,7 @@ export class NoteResearcher extends BaseResearcher {
   }
   
   protected extractUrls(html: string): Array<string> {
-    // note の記事 URL パターン: /username/n/xxxxxxxx
+    // note の記事 URL パターン : `/username/n/xxxxxxxx`
     const pattern = /https:\/\/note\.com\/[a-zA-Z0-9_]+\/n\/[a-zA-Z0-9]+/g;
     const matches = html.match(pattern) ?? [];
     return [...new Set(matches)];

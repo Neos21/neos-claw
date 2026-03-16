@@ -14,7 +14,7 @@
 
 1. <https://discord.com/developers/applications> を開く
 2. **New Application** をクリック
-3. 名前（例: `Neo's Claw`）を入力して **Create**
+3. 名前 (例 : `Neo's Claw`) を入力して **Create**
 
 ### 2. Bot を作成してトークンを取得する
 
@@ -22,8 +22,7 @@
 2. **Add Bot** → **Yes, do it!** をクリック
 3. **Token** セクションの **Reset Token** をクリック
 4. 表示されたトークンをコピー → `.env` の `DISCORD_TOKEN` に貼る
-
-> ⚠️ トークンは一度しか表示されません。必ずすぐコピーしてください。
+    - ⚠️ トークンは一度しか表示されません。必ずすぐコピーしてください。
 
 ### 3. Privileged Gateway Intents を有効にする
 
@@ -40,8 +39,8 @@
 
 1. 左メニュー **OAuth2 → URL Generator** を開く
 2. **Scopes** で以下にチェックする
-   - `bot`
-   - `applications.commands`
+    - `bot`
+    - `applications.commands`
 3. **Bot Permissions** で以下にチェックする
 
 | 権限                          | 用途                 |
@@ -79,16 +78,16 @@ new DiscordAdapter(core, {
 
 チャンネル ID は Discord でチャンネルを右クリック → **IDをコピー** で取得できます (開発者モードが必要)。
 
-> 開発者モードの有効化: **設定 → 詳細設定 → 開発者モード** をオン
+> 開発者モードの有効化 : **設定 → 詳細設定 → 開発者モード** をオン
 
 
 ## トラブルシューティング
 
 - **メッセージ本文が空 / ボットが反応しない**
-  - → **Message Content Intent** が有効になっているか確認 (最もよくあるミス)
+    - → **Message Content Intent** が有効になっているか確認 (最もよくあるミス)
 - **`DISCORD_TOKEN Is Required` エラー**
-  - → `.env` の `DISCORD_TOKEN` が未設定
+    - → `.env` の `DISCORD_TOKEN` が未設定
 - **ボットがオフラインのまま**
-  - → トークンが正しいか確認。**Bot** ページで **Reset Token** して再取得
+    - → トークンが正しいか確認。**Bot** ページで **Reset Token** して再取得
 - **DM が届かない**
-  → `Partials.Channel` と `Partials.Message` が `discord.ts` に含まれているか確認 (デフォルトで含まれています)
+    - → `Partials.Channel` と `Partials.Message` が `discord.ts` に含まれているか確認 (デフォルトで含まれています)

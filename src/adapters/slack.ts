@@ -4,33 +4,19 @@ import { SessionManager } from '../agent/session.js';
 
 import type { Runner } from '../agent/core.js';
 
-// ----------------------------------------------------------------
-// Types
-// ----------------------------------------------------------------
-
 export interface SlackAdapterOptions {
-  /** Slack Bot Token (xoxb-...) */
+  /** Slack Bot Token (`xoxb-...`) */
   botToken?: string;
-  /** Slack App-Level Token for Socket Mode (xapp-...) */
+  /** Slack App Level Token For Socket Mode (`xapp-...`) */
   appToken?: string;
-  /**
-   * エージェントが処理中であることを示すタイピングインジケーター。
-   * デフォルト: true
-   */
+  /** エージェントが処理中であることを示すタイピングインジケータ・デフォルト `true` */
   showTyping?: boolean;
-  /**
-   * セッションの永続化ディレクトリ。
-   * 未指定ならメモリのみ。
-   */
+  /** セッションの永続化ディレクトリ・未指定ならメモリのみ */
   persistDir?: string;
-  /** 外部から注入する SessionManager（未指定なら内部で生成） */
+  /** 外部から注入する SessionManager (未指定なら内部で生成) */
   sessions?: SessionManager;
   debug?: boolean;
 }
-
-// ----------------------------------------------------------------
-// SlackAdapter
-// ----------------------------------------------------------------
 
 export class SlackAdapter {
   private app: App;
@@ -41,16 +27,16 @@ export class SlackAdapter {
   
   constructor(core: Runner, options: SlackAdapterOptions = {}) {
     this.core = core;
+    
     this.showTyping = options.showTyping ?? true;
-    this.debug = options.debug ?? false;
+    this.debug      = options.debug ?? false;
     
-    const botToken = options.botToken;
-    const appToken = options.appToken;
+    const botToken  = options.botToken;
+    const appToken  = options.appToken;
+    if(botToken == null || botToken === '') throw new Error('SLACK_BOT_TOKEN Is Required');
+    if(appToken == null || appToken === '') throw new Error('SLACK_APP_TOKEN Is Required (Socket Mode)');
     
-    if(!botToken) throw new Error('SLACK_BOT_TOKEN is required');
-    if(!appToken) throw new Error('SLACK_APP_TOKEN is required (Socket Mode)');
-    
-    // Socket Mode で起動 — ポート不要・ngrok 不要
+    // Socket Mode で起動 : ポート不要・ngrok 不要
     this.app = new App({
       token: botToken,
       appToken,
@@ -66,50 +52,43 @@ export class SlackAdapter {
     this.registerHandlers();
   }
   
-  // ----------------------------------------------------------------
-  // Public API
-  // ----------------------------------------------------------------
-  
-  async start(): Promise<void> {
+  public async start(): Promise<void> {
     await this.app.start();
-    console.log('[SlackAdapter] Connected via Socket Mode ⚡');
+    console.log('[SlackAdapter] Connected Via Socket Mode ⚡');
   }
   
-  async stop(): Promise<void> {
+  public async stop(): Promise<void> {
     await this.app.stop();
     this.sessions.destroy();
-    console.log('[SlackAdapter] Stopped.');
+    console.log('[SlackAdapter] Stopped');
   }
   
-  // ----------------------------------------------------------------
-  // Event handlers
-  // ----------------------------------------------------------------
-  
+  /** Event Handlers */
   private registerHandlers(): void {
     // DM またはメンション (@bot) に反応する
     this.app.event('app_mention', async ({ event, client, say }) => {
-      // メンション部分（<@UXXXXXXXX>）を除去してメッセージ本文を取り出す
+      // メンション部分 (<@UXXXXXXXX>) を除去してメッセージ本文を取り出す
       const text = this.stripMention(event.text);
-      if(!text) return;
+      if(text === '') return;
       
-      // セッションID: チャンネルIDとユーザーIDの組み合わせ
+      // セッション ID : チャンネル ID とユーザ ID の組み合わせ
       // チャンネルごとに独立した会話を保持する
-      const sessionId = SessionManager.makeId('slack', event.channel, event.user ?? 'unknown');
+      const sessionId = SessionManager.makeId('slack', event.channel, event.user ?? 'Unknown');
       
       await this.handleMessage({ text, sessionId, channel: event.channel, threadTs: event.thread_ts ?? event.ts, client, say });
     });
     
     this.app.event('message', async ({ event, client, say }) => {
-      // サブタイプがある（編集・削除など）やBotメッセージは無視
-      if('subtype' in event && event.subtype) return;
-      if('bot_id' in event && event.bot_id) return;
+      // サブタイプがある (編集・削除など) や Bot メッセージは無視
+      if('subtype' in event && event.subtype != null) return;
+      if('bot_id'  in event && event.bot_id  != null) return;
       
-      // DM（im）チャンネルのみ反応する（メンション不要）
-      // パブリックチャンネルでは app_mention のみ対応
-      if(!event.channel_type || event.channel_type !== 'im') return;
+      // DM (im) チャンネルのみ反応する (メンション不要)
+      // パブリックチャンネルでは `app_mention` のみ対応
+      if(event.channel_type == null || event.channel_type !== 'im') return;
       
       const text = 'text' in event ? (event.text ?? '') : '';
-      if(!text.trim()) return;
+      if(text.trim() === '') return;
       
       const userId = 'user' in event ? (event.user ?? 'unknown') : 'unknown';
       const sessionId = SessionManager.makeId('slack', event.channel, userId);
@@ -130,10 +109,7 @@ export class SlackAdapter {
     });
   }
   
-  // ----------------------------------------------------------------
-  // Core message handling
-  // ----------------------------------------------------------------
-  
+  /** Core Message Handling */
   private async handleMessage(params: {
     text: string;
     sessionId: string;
@@ -146,49 +122,41 @@ export class SlackAdapter {
     
     this.log(`[${sessionId}] "${text.slice(0, 60)}..."`);
     
-    // タイピングインジケーター（処理中であることを示す）
-    let typingMsgTs: string | undefined;
+    // タイピングインジケータ (処理中であることを示す)
+    let typingMessageTs: string | undefined;
     if(this.showTyping) {
       try {
         const res = await say({ text: '⏳ 考え中...', thread_ts: threadTs });
-        typingMsgTs = (res as { ts?: string }).ts;
+        typingMessageTs = (res as { ts?: string }).ts;
       }
       catch {
-        // インジケーター送信失敗は無視
+        // インジケータ送信失敗は無視
       }
     }
     
     try {
       const result = await this.sessions.chat(sessionId, text, this.core);
       
-      // タイピングインジケーターを削除して本文を投稿
-      if(typingMsgTs) {
-        await this.app.client.chat.delete({ channel, ts: typingMsgTs }).catch(() => {});
-      }
+      // タイピングインジケータを削除して本文を投稿
+      if(typingMessageTs != null) await this.app.client.chat.delete({ channel, ts: typingMessageTs }).catch(() => {});
       
       // スレッドに返信
       await say({ text: result.text, thread_ts: threadTs });
       
-      // デバッグ時: tool call サマリーをエフェメラルで表示
+      // デバッグ時 : tool call サマリーをエフェメラルで表示
       if(this.debug && result.toolCalls.length > 0) {
         const summary = result.toolCalls
-          .map(tc => `• \`${tc.name}\` → ${tc.result.slice(0, 80)}`)
+          .map(toolCall => `・ \`${toolCall.name}\` → ${toolCall.result.slice(0, 80)}`)
           .join('\n');
-        this.log(`Tool calls:\n${summary}`);
+        this.log(`Tool Calls :\n${summary}`);
       }
     }
-    catch(err) {
-      if(typingMsgTs) {
-        await this.app.client.chat.delete({ channel, ts: typingMsgTs }).catch(() => {});
-      }
+    catch(error) {
+      if(typingMessageTs != null) await this.app.client.chat.delete({ channel, ts: typingMessageTs }).catch(() => {});
       await say({ text: '⚠️ エラーが発生しました。しばらくしてからもう一度お試しください。', thread_ts: threadTs });
-      this.log('handleMessage error:', err);
+      this.log('Handle Message Error :', error);
     }
   }
-  
-  // ----------------------------------------------------------------
-  // Private helpers
-  // ----------------------------------------------------------------
   
   /** `<＠UXXXXXXXX> テキスト` → `テキスト` */
   private stripMention(text: string): string {
@@ -196,8 +164,6 @@ export class SlackAdapter {
   }
   
   private log(message: string, ...args: Array<unknown>): void {
-    if(this.debug) {
-      console.log(`[SlackAdapter] ${message}`, ...args);
-    }
+    if(this.debug) console.log(`[SlackAdapter] ${message}`, ...args);
   }
 }

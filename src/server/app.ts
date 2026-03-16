@@ -1,56 +1,50 @@
 import express from 'express';
-import * as http from 'node:http';
-import * as path from 'node:path';
+import http from 'node:http';
+import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { WebSocketServer, WebSocket } from 'ws';
 
 import { SessionManager } from '../agent/session.js';
 
-import type { AgentCore, Runner } from '../agent/core.js';
+import type { Runner } from '../agent/core.js';
 import type { Request, Response } from 'express';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
-// ----------------------------------------------------------------
-// Types
-// ----------------------------------------------------------------
+const __dirname = path.dirname(fileURLToPath(import.meta.url));  // eslint-disable-line @typescript-eslint/naming-convention
 
 export interface FrontendServerOptions {
   port?: number;
-  /** Web UI の静的ファイルディレクトリ。未指定なら組み込みの簡易UIを返す */
+  /** Web UI の静的ファイルディレクトリ・未指定なら組み込みの簡易 UI を返す */
   publicDir?: string;
-  /** /api/health で返すモデル名 */
+  /** `/api/health` で返すモデル名 */
   model?: string;
-  /** 外部から注入する SessionManager（未指定なら内部で生成） */
+  /** 外部から注入する SessionManager (未指定なら内部で生成) */
   sessions?: SessionManager;
   debug?: boolean;
 }
 
-/** POST /api/chat のリクエストボディ */
+/** POST `/api/chat` のリクエストボディ */
 interface ChatRequest {
   message: string;
-  /** 省略時は "web:anonymous" */
+  /** 省略時は `web:anonymous` */
   sessionId?: string;
 }
 
-/** POST /api/chat のレスポンス */
+/** POST `/api/chat` のレスポンス */
 interface ChatResponse {
   text: string;
   sessionId: string;
-  toolCalls: Array<{ name: string; args: Record<string, unknown>; result: string }>;
+  toolCalls: Array<{ name: string; args: Record<string, unknown>; result: string; }>;
   iterations: number;
 }
 
-/** WebSocket で送受信するメッセージ */
+/** WebSocket で受信するメッセージ */
 type WsIncoming = { type: 'chat'; message: string; sessionId?: string };
+
+/** WebSocket で送信するメッセージ */
 type WsOutgoing =
-  | { type: 'chunk'; text: string }        // ストリーミング中のテキスト断片
+  | { type: 'chunk'; text: string }  // ストリーミング中のテキスト断片
   | { type: 'done'; sessionId: string; toolCalls: ChatResponse['toolCalls']; iterations: number }
   | { type: 'error'; message: string };
-
-// ----------------------------------------------------------------
-// FrontendServer
-// ----------------------------------------------------------------
 
 export class FrontendServer {
   private app = express();
@@ -64,9 +58,11 @@ export class FrontendServer {
   
   constructor(core: Runner, options: FrontendServerOptions = {}) {
     this.core = core;
-    this.port = options.port ?? 58080;
-    this.model = options.model ?? 'qwen2.5:14b-instruct-q4_k_m';
-    this.debug = options.debug ?? false;
+    
+    this.port     = options.port ?? 58080;
+    this.model    = options.model ?? '';
+    if(this.model === '') throw new Error('OLLAMA_MODEL Is Required');
+    this.debug    = options.debug ?? false;
     
     this.sessions = options.sessions ?? new SessionManager({ debug: this.debug });
     
@@ -78,28 +74,22 @@ export class FrontendServer {
     this.setupWebSocket();
   }
   
-  // ----------------------------------------------------------------
-  // Public API
-  // ----------------------------------------------------------------
-  
-  start(): Promise<void> {
+  public start(): Promise<void> {
     return new Promise(resolve => {
       this.server.listen(this.port, () => {
-        console.log(`[FrontendServer] Listening on http://localhost:${this.port}`);
+        console.log(`[FrontendServer] Listening On <http://localhost:${this.port}>`);
         resolve();
       });
     });
   }
   
-  stop(): Promise<void> {
+  public stop(): Promise<void> {
     return new Promise(resolve => {
       // 残っている WebSocket 接続を全て強制クローズ
-      for(const ws of this.wss.clients) {
-        ws.terminate();
-      }
+      for(const ws of this.wss.clients) ws.terminate();
       this.wss.close();
       
-      // Keep-Alive 接続が残っていても 3 秒でタイムアウト
+      // Keep-Alive 接続が残っていても3秒でタイムアウト
       const timer = setTimeout(() => resolve(), 3000);
       this.server.close(() => {
         clearTimeout(timer);
@@ -107,10 +97,6 @@ export class FrontendServer {
       });
     });
   }
-  
-  // ----------------------------------------------------------------
-  // Setup
-  // ----------------------------------------------------------------
   
   private setupMiddleware(publicDir?: string): void {
     this.app.use(express.json());
@@ -121,7 +107,7 @@ export class FrontendServer {
   }
   
   private setupRoutes(): void {
-    // ヘルスチェック
+    // ヘルスチェック・LLM モデル名表示
     this.app.get('/api/health', (_req: Request, res: Response) => {
       res.json({
         status: 'ok',
@@ -130,12 +116,12 @@ export class FrontendServer {
       });
     });
     
-    // チャット（REST）
+    // チャット (REST)
     this.app.post('/api/chat', async (req: Request, res: Response) => {
       const body = req.body as ChatRequest;
       
-      if(!body.message?.trim()) {
-        res.status(400).json({ error: 'message is required' });
+      if(body.message?.trim() === '') {
+        res.status(400).json({ error: 'Message Is Required' });
         return;
       }
       
@@ -146,9 +132,9 @@ export class FrontendServer {
         const response: ChatResponse = { text: result.text, sessionId, toolCalls: result.toolCalls, iterations: result.iterations };
         res.json(response);
       }
-      catch(err) {
-        this.log('POST /api/chat error:', err);
-        res.status(500).json({ error: 'Internal server error' });
+      catch(error) {
+        this.log('POST /api/chat Error :', error);
+        res.status(500).json({ error: 'Internal Server Error' });
       }
     });
     
@@ -161,18 +147,18 @@ export class FrontendServer {
       res.json({ ok: true });
     });
     
-    // SPA フォールバック（public/index.html が存在する場合）
+    // SPA フォールバック (`public/index.html` が存在する場合)
     this.app.get('/{*path}', (_req: Request, res: Response) => {
       const indexPath = path.join(__dirname, 'public', 'index.html');
-      res.sendFile(indexPath, err => {
-        if(err) res.status(404).send('Not found');
+      res.sendFile(indexPath, error => {
+        if(error != null) res.status(404).send('Not Found');
       });
     });
   }
   
   private setupWebSocket(): void {
     this.wss.on('connection', ws => {
-      this.log('WebSocket connected');
+      this.log('WebSocket Connected');
       
       ws.on('message', async raw => {
         let incoming: WsIncoming;
@@ -185,17 +171,16 @@ export class FrontendServer {
           return;
         }
         
-        if(incoming.type !== 'chat' || !incoming.message?.trim()) {
-          this.send(ws, { type: 'error', message: 'Invalid message format' });
+        if(incoming.type !== 'chat' || incoming.message == null || incoming.message.trim() === '') {
+          this.send(ws, { type: 'error', message: 'Invalid Message Format' });
           return;
         }
         
         const sessionId = incoming.sessionId ?? SessionManager.makeId('web', 'anonymous');
         
         try {
-          // AgentCore は現状ストリーミング非対応のため、
-          // 完了後に全文を1チャンクとして送信する。
-          // 将来 core.stream() を実装したら chunk を細かく送れる。
+          // AgentCore は現状ストリーミング非対応のため完了後に全文を1チャンクとして送信する
+          // 将来 `core.stream()` を実装したら Chunk を細かく送れる
           const result = await this.sessions.chat(sessionId, incoming.message, this.core);
           
           this.send(ws, { type: 'chunk', text: result.text });
@@ -206,29 +191,21 @@ export class FrontendServer {
             iterations: result.iterations
           });
         }
-        catch(err) {
-          this.log('WebSocket chat error:', err);
-          this.send(ws, { type: 'error', message: 'Agent error' });
+        catch(error) {
+          this.log('WebSocket Chat Error :', error);
+          this.send(ws, { type: 'error', message: 'Agent Error' });
         }
       });
       
-      ws.on('close', () => this.log('WebSocket disconnected'));
+      ws.on('close', () => this.log('WebSocket Disconnected'));
     });
   }
   
-  // ----------------------------------------------------------------
-  // Private helpers
-  // ----------------------------------------------------------------
-  
   private send(ws: WebSocket, data: WsOutgoing): void {
-    if(ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify(data));
-    }
+    if(ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(data));
   }
   
   private log(message: string, ...args: Array<unknown>): void {
-    if(this.debug) {
-      console.log(`[FrontendServer] ${message}`, ...args);
-    }
+    if(this.debug) console.log(`[FrontendServer] ${message}`, ...args);
   }
 }

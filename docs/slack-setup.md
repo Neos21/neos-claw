@@ -15,13 +15,13 @@
 
 1. <https://api.slack.com/apps> を開く
 2. **Create New App** → **From scratch** を選択
-3. App Name（例: `Neo's Claw`）と対象ワークスペースを入力して **Create App**
+3. App Name (例 : `Neo's Claw`) と対象ワークスペースを入力して **Create App**
 
 ### 2. Socket Mode を有効にする
 
 1. 左メニュー **Settings → Socket Mode** を開く
 2. **Enable Socket Mode** をオンにする
-3. Token Name（例: `neos-claw-socket`）を入力して **Generate**
+3. Token Name (例 : `neos-claw-socket`) を入力して **Generate**
 4. 表示された `xapp-...` トークンをコピー → `.env` の `SLACK_APP_TOKEN` に貼る
 
 ### 3. Bot Token Scopes を設定する
@@ -61,8 +61,8 @@
 1. 左メニュー **Features → Slash Commands** を開く
 2. **Create New Command** をクリック
 3. 以下を入力する
-   - Command : `/reset`
-   - Short Description : `会話履歴をリセット`
+    - Command : `/reset`
+    - Short Description : `会話履歴をリセット`
 4. **Save**
 
 ### 6. App をワークスペースにインストール (再インストール)
@@ -79,14 +79,14 @@ $ SLACK_ENABLED=true npm start
 ```
 
 - DM でボットに話しかける
-- パブリックチャンネルでボットをメンション（`@Neo's Claw こんにちは`）
+- パブリックチャンネルでボットをメンション (`@Neo's Claw こんにちは`)
 
 
 ## トラブルシューティング
 
-- **`SLACK_APP_TOKEN is required` エラー**
-  - → Socket Mode 用の `xapp-` トークンが `.env` に設定されていない
+- **`SLACK_APP_TOKEN Is Required` エラー**
+    - → Socket Mode 用の `xapp-` トークンが `.env` に設定されていない
 - **メッセージが届かない**
-  - → Event Subscriptions で `message.im` / `app_mention` が登録されているか確認
+    - → Event Subscriptions で `message.im` / `app_mention` が登録されているか確認
 - **`missing_scope` エラー**
-  - → Bot Token Scopes に必要な権限が不足している。追加後に再インストール
+    - → Bot Token Scopes に必要な権限が不足している。追加後に再インストール

@@ -1,18 +1,14 @@
 import type { Platform, PlatformResearch, SimilarArticle } from './scorer.js';
 import type { AgentTool } from '../../agent/core.js';
 
-// ----------------------------------------------------------------
-// BaseResearcher
-// ----------------------------------------------------------------
-
 /**
- * note / Zenn 共通のリサーチ基底クラス。
- * Brave Search を廃止し、Fetch MCP でプラットフォームの検索ページを
- * 直接取得して URL を抽出する方式に統一。APIキー不要・完全無料。
+ * note・Zenn 共通のリサーチ基底クラス
+ * 
+ * Fetch MCP でプラットフォームの検索ページを直接取得して URL を抽出する
  */
 export abstract class BaseResearcher {
   protected abstract readonly platform: Platform;
-  /** 検索ページの URL テンプレート。{query} を置換して使う */
+  /** 検索ページの URL テンプレート・`{query}` を置換して使う */
   protected abstract readonly searchUrl: string;
   
   constructor(
@@ -20,57 +16,51 @@ export abstract class BaseResearcher {
     protected readonly debug: boolean = false
   ) {}
   
-  async research(topic: string): Promise<PlatformResearch> {
-    this.log(`Researching "${topic}" on ${this.platform}...`);
+  public async research(topic: string): Promise<PlatformResearch> {
+    this.log(`Researching "${topic}" On ${this.platform}...`);
     
     try {
       const urls = await this.searchArticles(topic);
       this.log(`Found ${urls.length} URLs`);
       
       const articles = await this.fetchArticles(urls);
-      this.log(`Parsed ${articles.length} articles`);
+      this.log(`Parsed ${articles.length} Articles`);
       
       return { platform: this.platform, topic, articles };
     }
-    catch(err) {
-      const error = err instanceof Error ? err.message : String(err);
-      this.log(`Error: ${error}`);
-      return { platform: this.platform, topic, articles: [], error };
+    catch(error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.log(`Error : ${errorMessage}`);
+      return { platform: this.platform, topic, articles: [], error: errorMessage };
     }
   }
   
-  // ----------------------------------------------------------------
-  // Search（Fetch MCP で検索ページを直接取得）
-  // ----------------------------------------------------------------
-  
+  /** Search (Fetch MCP で検索ページを直接取得) */
   private async searchArticles(topic: string): Promise<Array<string>> {
     if(this.fetchTool == null) {
-      this.log('Fetch tool not available');
+      this.log('Fetch Tool Not Available');
       return [];
     }
     
     const url = this.searchUrl.replace('{query}', encodeURIComponent(topic));
-    this.log(`Fetching search page: ${url}`);
+    this.log(`Fetching Search Page : ${url}`);
     
     try {
       const html = await this.fetchTool.execute({ url });
       const urls = this.extractUrls(html);
-      this.log(`Extracted ${urls.length} article URLs`);
+      this.log(`Extracted ${urls.length} Article URLs`);
       return urls;
     }
-    catch(err) {
-      this.log('Failed to fetch search page:', err);
+    catch(error) {
+      this.log('Failed To Fetch Search Page :', error);
       return [];
     }
   }
   
-  /** 検索結果 HTML から記事 URL を抽出する（サブクラスで実装） */
+  /** 検索結果 HTML から記事 URL を抽出する (サブクラスで実装) */
   protected abstract extractUrls(html: string): Array<string>;
   
-  // ----------------------------------------------------------------
-  // Fetch & parse（各記事ページを取得して解析）
-  // ----------------------------------------------------------------
-  
+  /** Fetch & Parse (各記事ページを取得して解析) */
   private async fetchArticles(urls: Array<string>): Promise<Array<SimilarArticle>> {
     if(this.fetchTool == null || urls.length === 0) return [];
     
@@ -79,35 +69,29 @@ export abstract class BaseResearcher {
     );
     
     return results
-      .filter((r): r is PromiseFulfilledResult<SimilarArticle | null> => r.status === 'fulfilled')
-      .map(r => r.value)
-      .filter((a): a is SimilarArticle => a != null);
+      .filter((result): result is PromiseFulfilledResult<SimilarArticle | null> => result.status === 'fulfilled')
+      .map(result => result.value)
+      .filter((article): article is SimilarArticle => article != null);
   }
   
   private async fetchAndParse(url: string): Promise<SimilarArticle | null> {
     if(this.fetchTool == null) return null;
     
     try {
-      this.log(`Fetching article: ${url}`);
+      this.log(`Fetching Article : ${url}`);
       const html = await this.fetchTool.execute({ url });
       return this.parseArticle(url, html);
     }
-    catch(err) {
-      this.log(`Failed to fetch ${url}:`, err);
+    catch(error) {
+      this.log(`Failed To Fetch ${url} :`, error);
       return null;
     }
   }
   
-  /** 記事ページ HTML からメタ情報を抽出する（サブクラスで実装） */
+  /** 記事ページ HTML からメタ情報を抽出する (サブクラスで実装) */
   protected abstract parseArticle(url: string, html: string): SimilarArticle | null;
   
-  // ----------------------------------------------------------------
-  // Helpers
-  // ----------------------------------------------------------------
-  
   protected log(message: string, ...args: Array<unknown>): void {
-    if(this.debug) {
-      console.log(`[${this.platform}Researcher] ${message}`, ...args);
-    }
+    if(this.debug) console.log(`[${this.platform}Researcher] ${message}`, ...args);
   }
 }

@@ -5,7 +5,8 @@ import type { AgentTool } from '../../agent/core.js';
 
 export class ZennResearcher extends BaseResearcher {
   protected readonly platform = 'zenn' as const;
-  // Zenn の検索ページ（記事のみ、関連度順）
+  
+  // Zenn の検索ページ (記事のみ・関連度順)
   protected readonly searchUrl = 'https://zenn.dev/search?q={query}&topicname=&order=daily';
   
   constructor(fetchTool: AgentTool | null, debug = false) {
@@ -13,14 +14,14 @@ export class ZennResearcher extends BaseResearcher {
   }
   
   protected extractUrls(html: string): Array<string> {
-    // Zenn の記事 URL パターン: /username/articles/slug
+    // Zenn の記事 URL パターン : `/username/articles/slug`
     const pattern = /https:\/\/zenn\.dev\/[a-zA-Z0-9_]+\/articles\/[a-zA-Z0-9_-]+/g;
     const matches = html.match(pattern) ?? [];
     return [...new Set(matches)];
   }
   
   protected parseArticle(url: string, html: string): SimilarArticle | null {
-    // タイトル（「| Zenn」を除去）
+    // タイトル (「| Zenn」を除去)
     const titleMatch =
       html.match(/<meta property="og:title" content="([^"]+)"/) ??
       html.match(/<title>([^<]+)<\/title>/);

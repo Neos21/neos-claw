@@ -9,10 +9,7 @@ export interface ArticleResearcherOptions {
   debug?: boolean;
 }
 
-/**
- * note と Zenn の記事ネタ判定を行うオーケストレーター。
- * Fetch MCP のみを使用。APIキー不要・完全無料。
- */
+/** note と Zenn の記事ネタ判定を行うオーケストレータ・Fetch MCP のみを使用 */
 export class ArticleResearcher {
   private noteResearcher: NoteResearcher;
   private zennResearcher: ZennResearcher;
@@ -22,13 +19,11 @@ export class ArticleResearcher {
     this.debug = options.debug ?? false;
     
     const fetchTool =
-      core.getTools().find(t => t.name === 'fetch_readable') ??
-      core.getTools().find(t => t.name === 'fetch_markdown') ??
+      core.getTools().find(tool => tool.name === 'fetch_readable') ??
+      core.getTools().find(tool => tool.name === 'fetch_markdown') ??
       null;
     
-    if(fetchTool == null) {
-      console.warn('[ArticleResearcher] fetch_readable / fetch_markdown not available.');
-    }
+    if(fetchTool == null) console.warn('[ArticleResearcher] fetch_readable / fetch_markdown Not Available');
     
     this.noteResearcher = new NoteResearcher(fetchTool, this.debug);
     this.zennResearcher = new ZennResearcher(fetchTool, this.debug);
@@ -36,7 +31,7 @@ export class ArticleResearcher {
   
   /** note と Zenn を並列調査してレポートを返す */
   async research(topic: string): Promise<ArticleReport> {
-    this.log(`Starting research for: "${topic}"`);
+    this.log(`Starting Research For : "${topic}"`);
     
     const [noteResearch, zennResearch] = await Promise.all([
       this.noteResearcher.research(topic),
@@ -51,7 +46,7 @@ export class ArticleResearcher {
     };
   }
   
-  /** research() を実行してテキストレポートを返す */
+  /** `research()` を実行してテキストレポートを返す */
   async researchAndFormat(topic: string): Promise<string> {
     const report = await this.research(topic);
     return formatReport(report);
