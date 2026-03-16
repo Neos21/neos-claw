@@ -8,6 +8,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=M+PLUS+1+Code:wght@500&amp;display=swap" fetchPriority="high">
     <link rel="stylesheet"         href="https://fonts.googleapis.com/css2?family=M+PLUS+1+Code:wght@500&amp;display=swap" fetchPriority="high">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/11.2.0/marked.min.js"></script>
     <style>
 
 :root {
@@ -35,7 +36,7 @@ html, body {
   color: var(--text);
   font-family: "M PLUS 1 Code", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace, "Apple Color Emoji", "Noto Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
   word-break: break-all;
-  line-height: 1.6;
+  line-height: 1.7;
   background: var(--bg);
   cursor: default;
 }
@@ -138,8 +139,20 @@ header {
 
 .message-body {
   color: var(--text);
+}
+
+.message.user  .message-body,
+.message.agent .message-body p {
   white-space: pre-wrap;
 }
+
+.message.agent .message-body > *:not(.dot):not(:last-child) {
+  margin-bottom: 1.4rem;
+}
+.message-body em      { font-style: normal; font-weight: bold; }
+.message-body a       { color: #3cf; }
+.message-body a:hover { color: #f09; }
+.message-body ul, .message-body ol { padding-left: 2rem; }
 
 .message-body code {
   background: var(--border);
@@ -360,9 +373,13 @@ header {
     wrap.className = `message ${role}`;
     
     const roleLabel = { user: 'you', agent: 'agent', system: 'sys' }[role] ?? role;
+    // Agent メッセージは Markdown レンダリング・User と System は `escapeHtml`
+    const bodyHtml = role === 'agent'
+      ? window.marked.parse(text, { breaks: true, gfm: true })
+      : escapeHtml(text);
     wrap.innerHTML = `
       <div class="message-role">${roleLabel}</div>
-      <div class="message-body">${escapeHtml(text)}${toolCalls.length ? renderTools(toolCalls) : ''}</div>
+      <div class="message-body">${bodyHtml}${toolCalls.length ? renderTools(toolCalls) : ''}</div>
     `;
     messagesElement.appendChild(wrap);
     scrollToBottom();

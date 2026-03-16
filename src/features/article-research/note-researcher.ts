@@ -1,58 +1,65 @@
-import { BaseResearcher } from './base-researcher.js';
+import { BaseResearcher, type SearchResult } from './base-researcher.js';
 
 import type { SimilarArticle } from './scorer.js';
 import type { AgentTool } from '../../agent/core.js';
 
+interface NoteSearchResponse {
+  data: {
+    notes: Array<{
+      key: string;
+      name: string;
+      like_count: number;
+      price: number;
+      user: { urlname: string };
+    }>;
+  };
+}
+
 export class NoteResearcher extends BaseResearcher {
   protected readonly platform = 'note' as const;
+  protected readonly siteDomain = 'note.com';
   
-  constructor(fetchTool: AgentTool | null, debug = false) {
-    super(fetchTool, debug);
+  constructor(fetchJsonTool: AgentTool | null, fetchTool: AgentTool | null, debug = false) {
+    super(fetchJsonTool, fetchTool, debug);
   }
   
-  protected async searchArticles(topic: string): Promise<Array<string>> {
-    if(this.fetchTool == null) {
-      this.log('Fetch Tool Not Available');
-      return [];
-    }
+  protected async searchArticles(topic: string): Promise<SearchResult> {
+    const apiUrl = `https://note.com/api/v3/searches?context=note&q=${encodeURIComponent(topic)}&size=10&start=0`;
+    let apiUrls: Array<string> = [];
+    const apiSearchUrl = apiUrl;
     
-    // Google → DuckDuckGo の順でフォールバック
-    const engines = [
-      {
-        name: 'Google',
-        url: `https://www.google.com/search?q=site%3Anote.com+${encodeURIComponent(topic)}&num=10&hl=ja`
-      },
-      {
-        name: 'DuckDuckGo',
-        url: `https://html.duckduckgo.com/html/?q=site%3Anote.com+${encodeURIComponent(topic)}`
-      }
-    ];
-    
-    for(const engine of engines) {
-      this.log(`Searching Via ${engine.name} : ${engine.url}`);
-      
+    // Step 1 : note 非公式 API
+    if(this.fetchJsonTool != null) {
+      this.log(`Calling note API : ${apiUrl}`);
       try {
-        const text = await this.fetchTool.execute({ url: engine.url });
-        const urls = this.extractNoteUrls(text);
-        
-        if(urls.length > 0) {
-          this.log(`Extracted ${urls.length} Article URLs Via ${engine.name}`);
-          return urls;
-        }
-        
-        // URL が0件 = 弾かれた or 結果なし → 次のエンジンへ
-        this.log(`${engine.name} Returned 0 URLs, Trying Next...`);
+        const raw = await this.fetchJsonTool.execute({ url: apiUrl, max_length: 100000 });
+        const data = JSON.parse(raw) as NoteSearchResponse;
+        const notesObj = data?.data?.notes;
+        const notes: Array<any> = ((notesObj != null && 'contents' in notesObj) ? notesObj.contents : []) as Array<any>;
+        this.log(`note API Returned ${notes.length} Notes`);
+        apiUrls = notes.map(note => `https://note.com/${note.user.urlname}/n/${note.key}`);
       }
       catch(error) {
-        this.log(`${engine.name} Failed :`, error);
+        this.log('note API Failed :', error);
       }
     }
     
-    this.log('All Search Engines Failed Or Returned 0 Results');
-    return [];
+    // Step 2 : Web 検索フォールバック
+    const { urls: webUrls, usedUrl: webSearchUrl } = await this.webSearchFallback(topic);
+    
+    // API と Web 検索の結果をマージ (重複除去)
+    const merged = [...new Set([...apiUrls, ...webUrls])];
+    this.log(`Merged ${merged.length} note URLs (API : ${apiUrls.length} ・ Web : ${webUrls.length})`);
+    
+    return {
+      urls: merged,
+      apiSearchUrl,
+      webSearchUrl,
+      searchResultCount: merged.length
+    };
   }
   
-  private extractNoteUrls(text: string): Array<string> {
+  protected extractUrlsFromText(text: string): Array<string> {
     const pattern = /https?:\/\/note\.com\/[a-zA-Z0-9_]+\/n\/[a-zA-Z0-9]+/g;
     const matches = text.match(pattern) ?? [];
     return [...new Set(matches)];

@@ -1,18 +1,14 @@
-import { BaseResearcher } from './base-researcher.js';
+import { BaseResearcher, type SearchResult } from './base-researcher.js';
 
 import type { SimilarArticle } from './scorer.js';
 import type { AgentTool } from '../../agent/core.js';
 
-/** Zenn API のレスポンス型 (一部) */
 interface ZennArticle {
   path: string;
   title: string;
   liked_count: number;
-  comments_count: number;
   is_pro: boolean;
   price: number;
-  emoji: string;
-  user: { username: string };
 }
 
 interface ZennSearchResponse {
@@ -21,45 +17,50 @@ interface ZennSearchResponse {
 
 export class ZennResearcher extends BaseResearcher {
   protected readonly platform = 'zenn' as const;
+  protected readonly siteDomain = 'zenn.dev';
   
-  constructor(fetchTool: AgentTool | null, debug = false) {
-    super(fetchTool, debug);
+  constructor(fetchJsonTool: AgentTool | null, fetchTool: AgentTool | null, debug = false) {
+    super(fetchJsonTool, fetchTool, debug);
   }
   
-  /**
-   * Zenn の公式検索 API を使って記事一覧を取得する
-   * 
-   * SPA の検索ページと違い JSON が直接返るので確実に取得できる
-   */
-  protected async searchArticles(topic: string): Promise<Array<string>> {
-    if(this.fetchTool == null) {
-      this.log('Fetch Tool Not Available');
-      return [];
-    }
-    
+  protected async searchArticles(topic: string): Promise<SearchResult> {
     const apiUrl = `https://zenn.dev/api/search?q=${encodeURIComponent(topic)}&order=daily&source=articles`;
-    this.log(`Calling Zenn API : ${apiUrl}`);
+    let apiUrls: Array<string> = [];
+    const apiSearchUrl = apiUrl;
     
-    try {
-      const raw = await this.fetchTool.execute({ url: apiUrl });
-      
-      // fetch_txt / fetch_readable は Markdown や本文テキストを返すので JSON 部分だけ抽出してパースする
-      const jsonMatch = raw.match(/\{[\s\S]*\}/);
-      if(jsonMatch == null) {
-        this.log('No JSON Found In Response');
-        return [];
+    // Step 1 : Zenn 公式 API
+    if(this.fetchJsonTool != null) {
+      this.log(`Calling Zenn API : ${apiUrl}`);
+      try {
+        const raw = await this.fetchJsonTool.execute({ url: apiUrl, max_length: 100000 });
+        const data = JSON.parse(raw) as ZennSearchResponse;
+        const articles = data?.articles ?? [];
+        this.log(`Zenn API Returned ${articles.length} Articles`);
+        apiUrls = articles.map(article => `https://zenn.dev${article.path}`);
       }
-      
-      const data = JSON.parse(jsonMatch[0]) as ZennSearchResponse;
-      const articles = data.articles ?? [];
-      this.log(`API Returned ${articles.length} Articles`);
-      
-      return articles.map(article => `https://zenn.dev${article.path}`);
+      catch(error) {
+        this.log('Zenn API Failed :', error);
+      }
     }
-    catch(error) {
-      this.log('Failed To Call Zenn API :', error);
-      return [];
-    }
+    
+    // Step 2 : Web 検索フォールバック
+    const { urls: webUrls, usedUrl: webSearchUrl } = await this.webSearchFallback(topic);
+    
+    const merged = [...new Set([...apiUrls, ...webUrls])];
+    this.log(`Merged ${merged.length} Zenn URLs (API : ${apiUrls.length} ・ Web : ${webUrls.length})`);
+    
+    return {
+      urls: merged,
+      apiSearchUrl,
+      webSearchUrl,
+      searchResultCount: merged.length
+    };
+  }
+  
+  protected extractUrlsFromText(text: string): Array<string> {
+    const pattern = /https?:\/\/zenn\.dev\/[a-zA-Z0-9_]+\/articles\/[a-zA-Z0-9_-]+/g;
+    const matches = text.match(pattern) ?? [];
+    return [...new Set(matches)];
   }
   
   protected parseArticle(url: string, html: string): SimilarArticle | null {

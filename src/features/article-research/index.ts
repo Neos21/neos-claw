@@ -18,15 +18,23 @@ export class ArticleResearcher {
   constructor(core: AgentCore, options: ArticleResearcherOptions = {}) {
     this.debug = options.debug ?? false;
     
+    // JSON 取得用 : fetch_json を優先 (変換なしで JSON をそのまま返す)
+    const fetchJsonTool =
+      core.getTools().find(tool => tool.name === 'fetch_json') ??
+      core.getTools().find(tool => tool.name === 'fetch_txt') ??
+      null;
+    
+    // HTML・テキスト取得用: fetch_readable (Readability でパース済みテキスト)
     const fetchTool =
       core.getTools().find(tool => tool.name === 'fetch_readable') ??
       core.getTools().find(tool => tool.name === 'fetch_markdown') ??
       null;
     
-    if(fetchTool == null) console.warn('[ArticleResearcher] fetch_readable / fetch_markdown Not Available');
+    if(fetchJsonTool == null) console.warn('[ArticleResearcher] fetch_json / fetch_txt Not Available');
+    if(fetchTool == null)     console.warn('[ArticleResearcher] fetch_readable Not Available');
     
-    this.noteResearcher = new NoteResearcher(fetchTool, this.debug);
-    this.zennResearcher = new ZennResearcher(fetchTool, this.debug);
+    this.noteResearcher = new NoteResearcher(fetchJsonTool, fetchTool, this.debug);
+    this.zennResearcher = new ZennResearcher(fetchJsonTool, fetchTool, this.debug);
   }
   
   /** note と Zenn を並列調査してレポートを返す */

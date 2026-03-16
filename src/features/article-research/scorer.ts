@@ -18,6 +18,12 @@ export interface PlatformResearch {
   topic: string;
   /** 見つかった類似記事一覧 */
   articles: Array<SimilarArticle>;
+  /** プラットフォーム API の検索 URL */
+  apiSearchUrl: string;
+  /** Google か DuckDuckGo の検索 URL (使用した方) */
+  webSearchUrl: string;
+  /** 検索で見つかった記事 URL の件数 */
+  searchResultCount: number;
   /** 調査時のエラーメッセージ (失敗時) */
   error?: string;
 }
@@ -112,12 +118,14 @@ export function score(research: PlatformResearch): PlatformScore {
 
 /** ArticleReport をテキストに整形する (Slack・Discord・Web UI 共通) */
 export function formatReport(report: ArticleReport): string {
-  const stars = (number: number): string => '★'.repeat(number) + '☆'.repeat(5 - number);
-  const platform = (label: string, research: PlatformResearch, score: PlatformScore): string => {
+  const stars = (n: number): string => '★'.repeat(n) + '☆'.repeat(5 - n);
+  const query = encodeURIComponent(report.topic);
+  
+  const platformSection = (label: string, research: PlatformResearch, sc: PlatformScore): string => {
     const lines: Array<string> = [];
-    lines.push(`## ${label} ・ ${stars(score.score)}`);
-    lines.push(`ニッチ度 : ${stars(score.nicheScore)} ・ 有料化ポテンシャル : ${stars(score.paidPotential)}`);
-    lines.push(score.rationale);
+    lines.push(`## ${label} ・ ${stars(sc.score)}`);
+    lines.push(`ニッチ度 : ${stars(sc.nicheScore)} ・ 有料化ポテンシャル : ${stars(sc.paidPotential)}`);
+    lines.push(`${sc.rationale}`);
     lines.push('');
     
     if(research.error != null) {
@@ -129,15 +137,16 @@ export function formatReport(report: ArticleReport): string {
     else {
       lines.push('**類似記事 :**');
       for(const article of research.articles.slice(0, 5)) {
-        const paid = article.isPaid ? '💰' : '';
-        const likes = article.likes != null ? ` 👍${article.likes}` : '';
-        lines.push(`- ${paid}[${article.title}](${article.url})${likes}`);
+        const paid = article.isPaid ? '💰 ' : '';
+        const likes = article.likes != null ? `  👍${article.likes}` : '';
+        // リンク記法ではなく生 URL で出力 (フロントエンドでそのままクリック可能にするため)
+        lines.push(`- ${paid}${article.url}${likes}`);
       }
     }
     
     lines.push('');
     lines.push('**差別化ポイント :**');
-    for(const tip of score.differentiationTips) lines.push(`- ${tip}`);
+    for(const tip of sc.differentiationTips) lines.push(`- ${tip}`);
     
     return lines.join('\n');
   };
@@ -146,9 +155,9 @@ export function formatReport(report: ArticleReport): string {
   sections.push(`# 記事ネタ判定 : 「${report.topic}」`);
   sections.push(`調査日時 : ${report.generatedAt.toLocaleString('ja-JP')}`);
   sections.push('');
-  sections.push(platform('note', report.note.research, report.note.score));
+  sections.push(platformSection('note', report.note.research, report.note.score));
   sections.push('---');
-  sections.push(platform('Zenn', report.zenn.research, report.zenn.score));
+  sections.push(platformSection('Zenn', report.zenn.research, report.zenn.score));
   
   // 総合推奨
   const noteTotal = report.note.score;
@@ -163,6 +172,19 @@ export function formatReport(report: ArticleReport): string {
   else {
     sections.push(`✅ **総合推奨 : どちらも同スコア (${noteTotal})** … 両方投稿もアリ`);
   }
+  
+  // 目視確認用 URL (人間がブラウザで直接確認できる URL を固定生成)
+  sections.push('');
+  sections.push('---');
+  sections.push('## 🔗 目視確認用 URL');
+  sections.push('**note 検索結果 :**');
+  sections.push(`https://note.com/search?q=${query}&context=note&mode=recommend`);
+  sections.push('**Zenn 検索結果 :**');
+  sections.push(`https://zenn.dev/search?q=${query}&order=daily`);
+  sections.push('**Google 検索 (note) :**');
+  sections.push(`https://www.google.com/search?q=site%3Anote.com+${query}`);
+  sections.push('**Google 検索 (Zenn) :**');
+  sections.push(`https://www.google.com/search?q=site%3Azenn.dev+${query}`);
   
   return sections.join('\n');
 }

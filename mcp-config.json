@@ -13,9 +13,10 @@
     "fetch": {
       "command": "npx",
       "args": ["-y", "mcp-fetch-server"],
+      "env": {
+        "DEFAULT_LIMIT": "0"
+      },
       "exclude": [
-        "fetch_html",
-        "fetch_json",
         "fetch_youtube_transcript"
       ]
     },
