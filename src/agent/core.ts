@@ -79,9 +79,7 @@ export class AgentCore {
     
     this.log('▶ Starting ReAct Loop', { model: this.model, tools: this.tools.map((t) => t.name) });
     
-    // ----------------------------------------------------------------
     // ReAct ループ : Reasoning → Action → Observation → 繰り返し
-    // ----------------------------------------------------------------
     while(iterations < this.maxIterations) {
       iterations++;
       this.log(`\n[Iteration ${iterations}] Calling Ollama...`);
@@ -196,8 +194,6 @@ export class AgentCore {
   }
   
   private log(message: string, ...args: Array<unknown>): void {
-    if(this.debug) {
-      console.log(`[AgentCore] ${message}`, ...args);
-    }
+    if(this.debug) console.log(`[AgentCore] ${message}`, ...args);
   }
 }

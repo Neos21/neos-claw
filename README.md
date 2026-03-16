@@ -190,6 +190,29 @@ PORT=3000
 ```
 
 
+## 依存パッケージ
+
+### `dependencies`
+
+| パッケージ名 | 概要   |
+|--------------|--------|
+| ollama       | Ollama |
+
+### `devDependencies`
+
+| パッケージ名               | 概要       |
+|----------------------------|------------|
+| @eslint/js                 | ESLint     |
+| @neos21/neos-eslint-plugin | ESLint     |
+| @types/node                | TypeScript |
+| eslint                     | ESLint     |
+| eslint-plugin-import       | ESLint     |
+| globals                    | ESLint     |
+| jiti                       | ESLint     |
+| typescript                 | TypeScript |
+| typescript-eslint          | ESLint     |
+
+
 ## 起動方法 (予定)
 
 ```bash
