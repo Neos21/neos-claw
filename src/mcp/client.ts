@@ -64,13 +64,22 @@ export class McpClient {
   /** 全 MCP サーバを停止する (プロセス終了時に呼ぶ) */
   public async shutdown(): Promise<void> {
     this.log('Shutting Down All MCP Servers...');
-    await Promise.all(
-      [...this.servers.values()].map(server =>
-        server.transport.close().catch((error: any) => {
-          this.log(`Error Closing Transport For "${server.name}" :`, error);
-        })
-      )
-    );
+    
+    const closeWithTimeout = (server: ManagedServer): Promise<void> => {
+      const timeout = new Promise<void>(resolve => setTimeout(resolve, 3000));
+      const close = server.transport.close().catch(error => {
+        this.log(`Error Closing Transport For "${server.name}" :`, error);
+      });
+      return Promise.race([close, timeout]).then(() => {
+        const proc = (server.transport as unknown as { _process?: { killed: boolean; kill: () => void } })._process;
+        if(proc != null && !proc.killed) {
+          this.log(`Force Killing "${server.name}"...`);
+          proc.kill();
+        }
+      });
+    };
+    
+    await Promise.all([...this.servers.values()].map(closeWithTimeout));
     this.servers.clear();
     this.log('All MCP Servers Stopped');
   }

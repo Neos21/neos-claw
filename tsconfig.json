@@ -13,10 +13,10 @@
     ],
     // 出力する JavaScript のバージョンを指定する
     "target": "ES2022",
-    // 出力するモジュール形式を指定する : `ES2022` とすると ESModules (`import`・`export`) をそのまま使う
-    "module": "ES2022",
-    // モジュールの解決方法を指定する : `bundler` とすると Vite バンドラ前提での解決とする
-    "moduleResolution": "bundler",
+    // 出力するモジュール形式を指定する
+    "module": "NodeNext",
+    // モジュールの解決方法を指定する
+    "moduleResolution": "NodeNext",
     // モジュール解決の基準パス
     "baseUrl": ".",
     // 仮想的に同じルートにあるとみなすディレクトリを指定する : `import` の補完に役立つ
@@ -34,6 +34,8 @@
     // 厳密な型チェックを行う
     "strict": true,
     // TypeScript (`tsc`) による出力ファイルを生成しない
-    "noEmit": true
+    "noEmit": true,
+    // デフォルトエクスポートを持たないモジュールに対してもデフォルトインポート構文による読み込みを型システム上で許可する
+    "allowSyntheticDefaultImports": true,
   }
 }

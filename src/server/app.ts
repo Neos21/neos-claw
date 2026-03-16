@@ -79,11 +79,16 @@ export class FrontendServer {
   }
   
   public stop(): Promise<void> {
-    return new Promise((resolve, reject) => {
+    return new Promise(resolve => {
+      // 残っている WebSocket 接続を全て強制クローズする
+      for(const ws of this.wss.clients) ws.terminate();
       this.wss.close();
-      this.server.close(error => {
-        if(error != null) reject(error);
-        else resolve();
+      
+      // Keep-Alive 接続が残っていても 3 秒でタイムアウト
+      const timer = setTimeout(() => resolve(), 3000);
+      this.server.close(() => {
+        clearTimeout(timer);
+        resolve();
       });
     });
   }
@@ -138,7 +143,7 @@ export class FrontendServer {
     });
     
     // SPA フォールバック (`public/index.html` が存在する場合)
-    this.app.get('*', (_req: Request, res: Response) => {
+    this.app.get('/{*path}', (_req: Request, res: Response) => {
       const indexPath = path.join(__dirname, 'public', 'index.html');
       res.sendFile(indexPath, error => {
         if(error != null) res.status(404).send('Not Found');

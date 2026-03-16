@@ -70,6 +70,9 @@ export default defineConfig([
   },
   neosEslintPlugin.configs.recommended,
   {
-    ignores: ['node_modules/**', '.wrangler/**', '.react-router/**', 'build/**', 'report/**', 'worker-configuration.d.ts']  // チェックしないディレクトリ・ファイルを指定する
+    // チェックしないディレクトリ・ファイルを指定する
+    ignores: [
+      'node_modules/**'
+    ]
   }
 ]);
