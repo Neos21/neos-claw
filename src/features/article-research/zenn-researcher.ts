@@ -76,8 +76,8 @@ export class ZennResearcher extends BaseResearcher {
     const likes = likesMatch != null ? parseInt(likesMatch[1] ?? '0', 10) : undefined;
     
     const isPaid =
-      html.includes('"is_pro":true') ||
-      (html.includes('"price":') && !html.includes('"price":0'));
+      html.includes('"is_pro":true') ||  // eslint-disable-line neos-eslint-plugin/comment-colon-spacing
+      (html.includes('"price":') && !html.includes('"price":0'));  // eslint-disable-line neos-eslint-plugin/comment-colon-spacing
     
     const summaryMatch = html.match(/<meta property="og:description" content="([^"]+)"/);
     const summary = summaryMatch?.[1]?.trim();

@@ -135,7 +135,7 @@ export function formatReport(report: ArticleReport): string {
       lines.push('類似記事は見つかりませんでした (ニッチ!)');
     }
     else {
-      lines.push('**類似記事 :**');
+      lines.push('**類似記事 :**');  // eslint-disable-line neos-eslint-plugin/comment-colon-spacing
       for(const article of research.articles.slice(0, 5)) {
         const paid = article.isPaid ? '💰 ' : '';
         const likes = article.likes != null ? `  👍${article.likes}` : '';
@@ -145,7 +145,7 @@ export function formatReport(report: ArticleReport): string {
     }
     
     lines.push('');
-    lines.push('**差別化ポイント :**');
+    lines.push('**差別化ポイント :**');  // eslint-disable-line neos-eslint-plugin/comment-colon-spacing
     for(const tip of sc.differentiationTips) lines.push(`- ${tip}`);
     
     return lines.join('\n');
@@ -177,13 +177,13 @@ export function formatReport(report: ArticleReport): string {
   sections.push('');
   sections.push('---');
   sections.push('## 🔗 目視確認用 URL');
-  sections.push('**note 検索結果 :**');
+  sections.push('**note 検索結果 :**');  // eslint-disable-line neos-eslint-plugin/comment-colon-spacing
   sections.push(`https://note.com/search?q=${query}&context=note&mode=recommend`);
-  sections.push('**Zenn 検索結果 :**');
+  sections.push('**Zenn 検索結果 :**');  // eslint-disable-line neos-eslint-plugin/comment-colon-spacing
   sections.push(`https://zenn.dev/search?q=${query}&order=daily`);
-  sections.push('**Google 検索 (note) :**');
+  sections.push('**Google 検索 (note) :**');  // eslint-disable-line neos-eslint-plugin/comment-colon-spacing
   sections.push(`https://www.google.com/search?q=site%3Anote.com+${query}`);
-  sections.push('**Google 検索 (Zenn) :**');
+  sections.push('**Google 検索 (Zenn) :**');  // eslint-disable-line neos-eslint-plugin/comment-colon-spacing
   sections.push(`https://www.google.com/search?q=site%3Azenn.dev+${query}`);
   
   return sections.join('\n');

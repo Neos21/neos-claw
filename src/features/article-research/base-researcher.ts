@@ -5,7 +5,7 @@ export interface SearchResult {
   urls: Array<string>;
   /** プラットフォーム公式・非公式 API の検索 URL */
   apiSearchUrl: string;
-  /** Google か DuckDuckGo の検索 URL（使用した方・失敗時は空文字） */
+  /** Google か DuckDuckGo の検索 URL (使用した方・失敗時は空文字) */
   webSearchUrl: string;
   searchResultCount: number;
 }

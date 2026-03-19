@@ -24,7 +24,7 @@ export class ArticleResearcher {
       core.getTools().find(tool => tool.name === 'fetch_txt') ??
       null;
     
-    // HTML・テキスト取得用: fetch_readable (Readability でパース済みテキスト)
+    // HTML・テキスト取得用 : fetch_readable (Readability でパース済みテキスト)
     const fetchTool =
       core.getTools().find(tool => tool.name === 'fetch_readable') ??
       core.getTools().find(tool => tool.name === 'fetch_markdown') ??

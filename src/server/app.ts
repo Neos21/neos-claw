@@ -139,7 +139,7 @@ export class FrontendServer {
     });
     
     // 会話履歴のリセット
-    this.app.delete('/api/chat/:sessionId', (req: Request, res: Response) => {
+    this.app.delete('/api/chat/:sessionId', (req: Request, res: Response) => {  // eslint-disable-line neos-eslint-plugin/comment-colon-spacing
       const sessionId = Array.isArray(req.params.sessionId)
         ? req.params.sessionId[0]
         : req.params.sessionId;

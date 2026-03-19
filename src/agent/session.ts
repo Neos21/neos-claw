@@ -9,6 +9,7 @@ export type ChannelPrefix = 'slack' | 'discord' | 'web';
 
 /**
  * セッション ID 形式
+ * 
  * - slack:C012AB3CD:U012AB3CD
  * - discord:123456789012345678
  * - web:550e8400-e29b-41d4-a716-446655440000
@@ -92,6 +93,7 @@ export class SessionManager {
   
   /**
    * AgentCore にメッセージを送り応答を返す
+   * 
    * セッションの取得・作成・履歴の追加・永続化をすべて処理する
    * 
    * @param sessionId セッションID (`makeId()` で生成)
@@ -199,9 +201,7 @@ export class SessionManager {
     return this.sessions.size;
   }
   
-  /**
-   * GC タイマーを停止する (テスト・シャットダウン時用)
-   */
+  /** GC タイマーを停止する (テスト・シャットダウン時用) */
   destroy(): void {
     if(this.gcTimer != null) {
       clearInterval(this.gcTimer);

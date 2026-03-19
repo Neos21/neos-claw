@@ -76,6 +76,7 @@ export class AgentCore {
   
   /**
    * 会話履歴を受け取り、エージェントの ReAct ループを回して最終応答を返す
+   * 
    * 呼び出し側 (`session.ts`) が履歴を管理する設計
    * 
    * @param history これまでの会話履歴 (System メッセージは含まない)
@@ -227,6 +228,7 @@ export class AgentCore {
   
   /**
    * `system-prompt.md` を読み込み `{{TOOLS}}` をツール一覧で置換して返す
+   * 
    * プロンプトの内容は `.md` ファイルだけで管理し `core.ts` はロジックを持たない
    */
   private buildSystemPrompt(): string {

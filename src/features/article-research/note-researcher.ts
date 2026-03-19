@@ -77,7 +77,7 @@ export class NoteResearcher extends BaseResearcher {
     const likes = likesMatch != null ? parseInt(likesMatch[1] ?? '0', 10) : undefined;
     
     const isPaid =
-      html.includes('"is_paid":true') ||
+      html.includes('"is_paid":true') ||  // eslint-disable-line neos-eslint-plugin/comment-colon-spacing
       html.includes('有料記事') ||
       html.includes('購入する');
     
